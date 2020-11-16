@@ -2,7 +2,7 @@
 Affinity Chess is a chess program/engine written in Python, supporting both play against a human or an AI. 
 
 # Before you start playing
-In the file settings.py you will find a lot of settings for the game and GUI in general. Here are some of the most important things to know of before you start playing:
+In the file settings.py you will find a lot of settings for the game and GUI in general. Here are some of the most important settings to know of before you start playing:
 - game_mode: 'ai' to play against the AI, 'human' to play human vs human.
 - is_ai_white: True if AI is playing as white, False if AI is black.
 - max_search_time: After this time runs out, the AI returns the move from the current depth. 
@@ -12,9 +12,9 @@ In the file settings.py you will find a lot of settings for the game and GUI in 
 Other variables are changed at own risk. However, they are all explained more or less thoroughly in the comments in the code.
 
 # How to play
-Playing is very simple. You can run the command "python gui.py" in the terminal, in the folder where you downloaded the game. Or you can open up gui.py in your favorite IDE and start it from there.
+Playing is very simple. You can run the command "python gui.py" in the terminal, in the folder where you downloaded the game. Or you can open up gui.py in your favorite IDE and play from there.
 
-You move a piece by dragging and dropping in the GUI. When you grab a piece, all legal squares for that piece will light up.
+You move a piece by dragging and dropping it in the GUI. When you grab a piece, all legal squares for that piece will light up.
 
 Useful commands:
 - z-key: Undo the latest move.
@@ -53,10 +53,12 @@ Future implementation ideas:
   
 # AI features
 Three different levels:
-0: Picks a random move from all valid moves.
-1: Looks 1 half move ahead, makes an evaluation, and picks the top move.
-2: TBD.
-3: Full Negamax algorithm, see features below.
+<ol start="0">
+<li>Picks a random move from all valid moves.</li>
+<li>Looks 1 half move ahead, makes an evaluation, and picks the top move.</li>
+<li>TBD.</li>
+<li>Full Negamax algorithm.</li>
+</ol>
 
 Level 3 information:
 -
@@ -94,6 +96,7 @@ You have the ability to chose the level of evaluation in the settings file. Feat
 - [X] Static isolated pawn punishment
 - [X] Knights worth slightly less in endgame, bishops slightly more
 - [X] Rook on open or semi open file bonus
+- [X] Punishment for having a piece in front of un-developed d- and e-pawn
 
 Future implementation ideas:
 - [ ] Bonus for attacks around the enemy king
@@ -102,7 +105,6 @@ Future implementation ideas:
 - [ ] Bonus for trading material when being up in material
 - [ ] Bonus for mobility
 - [ ] Punishment for not developing pieces
-- [ ] Punishment for having a piece in front of un-developed d- and e-pawn
 
 
 
