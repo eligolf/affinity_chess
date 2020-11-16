@@ -12,38 +12,44 @@ In the file settings.py you will find a lot of settings for the game and GUI in 
 Other variables are changed at own risk. However, they are all explained more or less thoroughly in the comments in the code.
 
 # How to play
-Playing is very simple. You can run the command "python gui.py" in the terminal, in the folder where you downloaded the game. Or you can open up gui.py in your favorite IDE and start it from there. Make sure you have the following packages installed:
+Playing is very simple. You can run the command "python gui.py" in the terminal, in the folder where you downloaded the game. Or you can open up gui.py in your favorite IDE and start it from there.
+
+You move a piece by dragging and dropping in the GUI. When you grab a piece, all legal squares for that piece will light up.
+
+Useful commands:
+- z-key: Undo the latest move.
+- r-key: Restart the game with the initial settings.
 
 # Game features
-Affinity Chess supports the rules of normal chess, including:
-- Castling
-- Enpassant
-- Pawn promotion to a queen
-- Draw by 3 fold repetition
-- Draw by insufficient material
-- Draw by 50 move rule
-- Checkmate and stalemate detection
+Affinity Chess supports the rules of normal chess.
+- [X] Castling
+- [X] Enpassant
+- [X] Pawn promotion to a queen
+- [X] Draw by 3 fold repetition
+- [X] Draw by insufficient material
+- [X] Draw by 50 move rule
+- [X] Checkmate and stalemate detection
 
 Deviations to be implemented in the future: 
-- Possibility to promote to other pieces than queen.
+- [ ] Possibility to promote to other pieces than queen.
 
 # Other features
-- Simple GUI with drag and drop piece movement.
-- Ability to chose AI level (see AI features below).
-- Ability to play again when game is over.
-- Restart game when pressing r-key.
-- Undo move with 'z'-key.
-- Sound effects when making a move.
+- [X] Simple GUI with drag and drop piece movement.
+- [X] Ability to chose AI level (see AI features below).
+- [X] Ability to play again when game is over.
+- [X] Restart game when pressing r-key.
+- [X] Undo move with 'z'-key.
+- [X] Sound effects when making a move.
 
 Future implementation ideas:
-- Start up window to set initial paramters such as:
+- [ ] Start up window to set initial paramters such as:
   - Human or AI opponent.
   - AI level.
   - Max/min search depth.
   - Max search time.
   - AI playing with opening book or not.
-- Ability to flip board.
-- Different sound for different type of moves (capture piece, castling etc).
+- [ ] Ability to flip board.
+- [ ] Different sound for different type of moves (capture piece, castling etc).
   
 # AI features
 Three different levels:
@@ -55,10 +61,10 @@ Three different levels:
 Level 3 information:
 -
 The Level 3 AI is based on a Negamax algorithm with the following features included:
-- Alpha-beta pruning
-- Iterative deepening
-- Transposition Table
-- Move ordering:
+- [X] Alpha-beta pruning
+- [X] Iterative deepening
+- [X] Transposition Table
+- [X] Move ordering:
   - Best move from previous iterations
   - Killer moves
   - MVV/LVA
@@ -67,27 +73,36 @@ The Level 3 AI is based on a Negamax algorithm with the following features inclu
 There is also a small opening book included which you decide if the AI should use or not. 
 
 Future implementation ideas:
-- Make negamax stop at exactly the maximum search time and return the best move from the previous iteration
-- Bitboard representation
-- Hash moves move ordering
-- Larger opening book/other opening concept
-- Null move
-- Quiscience search
-- Late move reduction (LMR)
-- Print out the PV line that AI think is best
+- [ ] Make negamax stop at exactly the maximum search time and return the best move from the previous iteration
+- [ ] Bitboard representation
+- [ ] Hash moves move ordering
+- [ ] Larger opening book/other opening concept
+- [ ] Null move
+- [ ] Quiscience search
+- [ ] Late move reduction (LMR)
+- [ ] Print out the PV line that AI think is best
 
 # Evaluation function
 You have the ability to chose the level of evaluation in the settings file. Features for the level 2 evaluation function are as follows:
-- Checkmate and stalemate
-- Interpolation between midgame and endgame phase
-- Basic piece values, same in mid- and endgame
-- Piece-Square dependent values, interpolated between mid- and endgame.
-- Castling bonus in opening
-- Static bishop pair bonus
-- Static double pawn punishment
-- Static isolated pawn punishment
-- Knights worth slightly less in endgame, bishops slightly more
-- Rook on open or semi open file bonus
+- [X] Checkmate and stalemate
+- [X] Interpolation between midgame and endgame phase
+- [X] Basic piece values, same in mid- and endgame
+- [X] Piece-Square dependent values, interpolated between mid- and endgame.
+- [X] Castling bonus in opening
+- [X] Static bishop pair bonus
+- [X] Static double pawn punishment
+- [X] Static isolated pawn punishment
+- [X] Knights worth slightly less in endgame, bishops slightly more
+- [X] Rook on open or semi open file bonus
+
+Future implementation ideas:
+- [ ] Bonus for attacks around the enemy king
+- [ ] Bonus for attacks in the center
+- [ ] Bonus for passed pawns
+- [ ] Bonus for trading material when being up in material
+- [ ] Bonus for mobility
+- [ ] Punishment for not developing pieces
+- [ ] Punishment for having a piece in front of un-developed d- and e-pawn
 
 
 
