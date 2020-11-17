@@ -14,7 +14,9 @@ Other variables are changed at own risk. However, they are all explained more or
 # How to play
 Playing is very simple. You can run the command "python gui.py" in the terminal, in the folder where you downloaded the game. Or you can open up gui.py in your favorite IDE and play from there.
 
-You move a piece by dragging and dropping it in the GUI. When you grab a piece, all legal squares for that piece will light up.
+<div style="text-align:center"><img src="https://i.ibb.co/37CLGHL/gui-image.png" /><br></div>
+
+You move a piece by dragging and dropping it in the GUI with your mouse. When you grab a piece, all legal squares for that piece will light up, shown in the image above.
 
 Useful commands:
 - z-key: Undo the latest move.
