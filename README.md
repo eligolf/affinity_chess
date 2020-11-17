@@ -1,17 +1,17 @@
 # Introduction
 Affinity Chess is a chess program/engine written in Python as a hobby project to learn more about programming. The program allows you to play against another human or against the built in AI.
 
-# Before you start playing
+# Getting started
 In the file settings.py you will find a lot of settings for the game and GUI in general. Here are some of the most important settings to know of before you start playing:
 - **game_mode**: 'ai' to play against the AI, 'human' to play human vs human.
 - **is_ai_white**: True if AI is playing as white, False if AI is black.
 - **max_search_time**: After this time runs out, the AI returns the move from the current depth. 
 - **min_search_depth**: Search for at least this depth before returning a move (overrides max_search_time).
-- **max_search_depth**: Stops when it reaches this depth, or if max_search_time has run out before that. Must be set larger than min_search_depth.
+- **max_search_depth**: Stops when it reaches this depth, or if max_search_time has run out before that (overrides min_search_depth).
 
-Other variables are changed at own risk. However, they are all explained more or less thoroughly in the comments in the code.
+Other variables are changed at own risk ;) However, they are all explained more or less thoroughly in the code.
 
-# How to play
+# Start playing
 Playing is very simple. You can run the command "python gui.py" in the terminal, in the folder where you downloaded the game. Or you can open up gui.py in your favorite IDE and play from there.
 <figure>
     <img src='https://i.ibb.co/37CLGHL/gui-image.png' alt='missing' />
