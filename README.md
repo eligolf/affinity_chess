@@ -1,5 +1,5 @@
 # Introduction
-Affinity Chess is a chess program/engine written in Python, supporting both play against a human or an AI. 
+Affinity Chess is a chess program/engine written in Python as a hobby project to learn more about programming. The program allows you to play against another human or against the built in AI. 
 
 # Before you start playing
 In the file settings.py you will find a lot of settings for the game and GUI in general. Here are some of the most important settings to know of before you start playing:
@@ -13,8 +13,12 @@ Other variables are changed at own risk. However, they are all explained more or
 
 # How to play
 Playing is very simple. You can run the command "python gui.py" in the terminal, in the folder where you downloaded the game. Or you can open up gui.py in your favorite IDE and play from there.
-
-<div style="text-align:center"><img src="https://i.ibb.co/37CLGHL/gui-image.png" /><br></div>
+<figure>
+    <img src='https://i.ibb.co/37CLGHL/gui-image.png' alt='missing' />
+    <figcaption><i>Sample view of the Affinity Chess GUI when dragging a piece.</i></figcaption>
+  <br>
+  <br>
+</figure>
 
 You move a piece by dragging and dropping it in the GUI with your mouse. When you grab a piece, all legal squares for that piece will light up, shown in the image above.
 
