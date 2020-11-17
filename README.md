@@ -14,7 +14,7 @@ Other variables are changed at own risk. However, they are all explained more or
 # How to play
 Playing is very simple. You can run the command "python gui.py" in the terminal, in the folder where you downloaded the game. Or you can open up gui.py in your favorite IDE and play from there.
 
-![Image](https://github.com/eligolf/affinity_chess/tree/main/imgs/gui_image.png?raw=true)
+![Image](https://pasteboard.co/JAJAuBP.png)
 
 You move a piece by dragging and dropping it in the GUI. When you grab a piece, all legal squares for that piece will light up.
 
