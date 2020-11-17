@@ -1,5 +1,5 @@
 # Introduction
-Affinity Chess is a chess program/engine written in Python as a hobby project to learn more about programming. The program allows you to play against another human or against the built in AI. 
+Affinity Chess is a chess program/engine written in Python as a hobby project to learn more about programming. The program allows you to play against another human or against the built in AI.
 
 # Before you start playing
 In the file settings.py you will find a lot of settings for the game and GUI in general. Here are some of the most important settings to know of before you start playing:
@@ -55,6 +55,7 @@ Future implementation ideas:
   - Max search time.
   - AI playing with opening book or not.
 - [ ] Ability to flip board.
+- [ ] Make the GUI larger to include prints of e.g. AI evaluation and the current move log.
 - [ ] Different sound for different type of moves (capture piece, castling etc).
   
 # AI features
