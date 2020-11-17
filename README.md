@@ -78,7 +78,7 @@ The Level 3 AI is based on a Negamax algorithm with the following features inclu
   - MVV/LVA
   - Internal Iterative Deepening
 
-There is also a small opening book included which you decide if the AI should use or not. 
+There is also a small opening book included. 
 
 Future implementation ideas:
 - [ ] Make negamax stop at exactly the maximum search time and return the best move from the previous iteration
@@ -102,7 +102,7 @@ You have the ability to chose the level of evaluation in the settings file. Feat
 - [X] Static isolated pawn punishment
 - [X] Knights worth slightly less in endgame, bishops slightly more
 - [X] Rook on open or semi open file bonus
-- [X] Punishment for having a piece in front of un-developed d- and e-pawn
+- [X] Punishment for having a piece in front of undeveloped d- and e-pawns
 
 Future implementation ideas:
 - [ ] Bonus for attacks around the enemy king
