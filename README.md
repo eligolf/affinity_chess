@@ -30,14 +30,11 @@ Useful commands:
 Affinity Chess supports the rules of normal chess.
 - [X] Castling
 - [X] Enpassant
-- [X] Pawn promotion to a queen
+- [X] Pawn promotion to all 4 pieces
 - [X] Draw by 3 fold repetition
 - [X] Draw by insufficient material
 - [X] Draw by 50 move rule
 - [X] Checkmate and stalemate detection
-
-Deviations to be implemented in the future: 
-- [ ] Possibility to promote to other pieces than queen.
 
 # Other features
 - [X] Simple GUI with drag and drop piece movement.
@@ -104,6 +101,7 @@ You have the ability to chose the level of evaluation in the settings file. Feat
 - [X] Knights worth slightly less in endgame, bishops slightly more
 - [X] Rook on open or semi open file bonus
 - [X] Punishment for having a piece in front of undeveloped d- and e-pawns
+- [X] Punishment for not developing pieces
 
 Future implementation ideas:
 - [ ] Bonus for attacks around the enemy king
@@ -111,7 +109,7 @@ Future implementation ideas:
 - [ ] Bonus for passed pawns
 - [ ] Bonus for trading material when being up in material
 - [ ] Bonus for mobility
-- [ ] Punishment for not developing pieces
+
 
 
 
