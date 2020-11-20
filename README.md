@@ -40,7 +40,7 @@ Affinity Chess supports the rules of normal chess.
 # Other features
 - [X] Simple GUI with drag and drop piece movement.
 - [X] Start up window to set:
-  - Start position (FEN string)
+  - Start FEN (optional)
   - Human or AI opponent.
   - Play as white or black.
   - AI level.
