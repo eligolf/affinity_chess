@@ -24,7 +24,8 @@ You move a piece by dragging and dropping it in the GUI with your mouse. When yo
 
 Useful commands:
 - **z-key**: Undo the latest move.
-- **r-key**: Restart the game with the initial settings.
+- **r-key**: Restart the game.
+- **f-key**: Flip the board.
 
 # Game features
 Affinity Chess supports the rules of normal chess.
@@ -38,21 +39,15 @@ Affinity Chess supports the rules of normal chess.
 
 # Other features
 - [X] Simple GUI with drag and drop piece movement.
-- [X] Ability to chose AI level (see AI features below).
-- [X] Ability to play again when game is over.
-- [X] Restart game when pressing r-key.
-- [X] Undo move with 'z'-key.
+- [X] Start up window to set:
+  - Start position (FEN string)
+  - Human or AI opponent.
+  - Play as white or black.
+  - AI level.
 - [X] Sound effects when making a move.
 
 Future implementation ideas:
-- [ ] Start up window to set initial paramters such as:
-  - Human or AI opponent.
-  - AI level.
-  - Max/min search depth.
-  - Max search time.
-  - AI playing with opening book or not.
-- [ ] Ability to flip board.
-- [ ] Make the GUI larger to include prints of e.g. AI evaluation and the current move log.
+- [ ] Make the GUI larger to include printing e.g. AI evaluation and the current move log.
 - [ ] Different sound for different type of moves (capture piece, castling etc).
   
 # AI features
