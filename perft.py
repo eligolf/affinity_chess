@@ -45,7 +45,7 @@ class Perft:
 
             gamestate = b.GameState(fen, 'ai', False, 0)
 
-            gamestate.is_white_turn = False if 'b' in fen else True
+            gamestate.is_white_turn = True if 'w' in fen else False
 
             # Run perft test with iterative deepening
             for i in range(1, len(answers) + 1):
