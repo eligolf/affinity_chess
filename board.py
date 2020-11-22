@@ -4,6 +4,7 @@
 
 import settings as s
 import ai
+import fen_handling as f
 
 import time
 import copy
@@ -13,15 +14,46 @@ from itertools import chain
 
 class GameState:
 
-    def __init__(self):
+    def __init__(self, start_fen, game_mode, is_ai_white, max_search_depth):
 
-        # When testing positions, change this boolean in settings file
-        if s.pos_testing:
-            self.board = copy.deepcopy(s.start_board_pos_test)
-            self.white_king_location, self.black_king_location = s.wk_pos_test, s.bk_pos_test
+        # Init the board and relevant variables from an input fen string
+        self.start_fen = start_fen
+        self.board, self.castling_rights, self.enpassant_square, self.fifty_move_clock, self.is_white_turn = \
+            f.run_fen_to_board(self.start_fen)  # Initialize board to start position
+
+        if self.enpassant_square:
+            self.enpassant_col = self.enpassant_square % 10 - 1
         else:
-            self.board = copy.deepcopy(s.start_board)  # Initialize board to start position
-            self.white_king_location, self.black_king_location = s.start_pos_white_king, s.start_pos_black_king
+            self.enpassant_col = None  # Init what column is valid
+
+        self.play_with_opening_book = False
+        self.game_mode = game_mode
+        self.is_ai_white = is_ai_white
+        self.max_search_depth = max_search_depth
+
+        # Keep track of where pawns are located on the board for evaluation
+        self.pawn_columns_list, self.rook_columns_list = [[], []], [[], []]
+        self.init_piece_columns()
+
+        # Keep track of number of pieces on the board
+        self.piece_dict = [{'p': 0, 'N': 0, 'B': 0, 'R': 0, 'Q': 0, 'K': 0}, {'p': 0, 'N': 0, 'B': 0, 'R': 0, 'Q': 0, 'K': 0}]  # W, B
+        self.init_piece_dict()
+
+        # Gamestate phase (opening, midgame or endgame?)
+        self.midgame, self.endgame = 0, 0
+        self.gamestate_phase = 0
+        self.init_gamestate()
+
+        # Piece values (base and square dependent)
+        self.piece_values = [0, 0]
+        self.init_piece_values()
+
+        # Init king positions
+        self.white_king_location, self.black_king_location = 0, 0
+        self.init_king_positions()
+
+        # King distance
+        self.update_king_distance()
 
         # Get possible moves for a certain piece type
         self.move_functions = {'p': self.get_pawn_moves,
@@ -32,7 +64,6 @@ class GameState:
                                'K': self.get_king_moves}
 
         self.white_wins = False
-        self.is_white_turn = True
         self.move_counter = 1
 
         self.pins, self.checks = [], []
@@ -40,12 +71,9 @@ class GameState:
         self.is_check_mate, self.is_stale_mate = False, False
         self.kind_of_stalemate = ''
 
-        self.castling_rights = [True, True, True, True]  # W king side, W queen side, B king side, B queen side
         self.white_has_castled, self.black_has_castled = False, False
 
-        self.enpassant_square = None  # The square where an enpassant is possible
         self.enpassant_made = False
-        self.is_pawn_promotion = False
 
         self.white_mobility, self.black_mobility = 0, 0  # Mobility = number of valid moves times a factor (mobility factor in settings file)
 
@@ -55,44 +83,34 @@ class GameState:
         self.zobrist_board = {}
         self.zobrist_pieces = [0] * 64  # One for each square
         self.zobrist_enpassant = [0] * 8  # One for each column
-        self.enpassant_row = None  # Init what column is valid
         self.zobrist_castling = [0] * 4  # W king side, W queen side, B king side, B queen side
         self.zobrist_black_to_move = 0  # Turn
 
         self.zobrist_key = self.init_zobrist()
 
-        # Gamestate phase (opening, midgame or endgame?)
-        self.gamestate_phase = copy.deepcopy(s.total_phase)
-        self.midgame, self.endgame = 1, 0
-        self.piece_values = self.init_piece_values()
-
         # Checking 3 fold repetition and 50 move stalemate rules
         self.three_fold = {}
-        self.fifty_move_clock = 0
 
-        # Keep track of where pawns are located on the board for evaluation
-        self.pawn_columns_list = [[1, 2, 3, 4, 5, 6, 7, 8], [1, 2, 3, 4, 5, 6, 7, 8]]
-        self.rook_columns_list = [[1, 8], [1, 8]]
-
-        # Distance between the 2 kings
-        self.king_distance = 7
-
-        # Keep track of number of pieces on the board
-        self.piece_dict = [{'p': 8, 'N': 2, 'B': 2, 'R': 2, 'Q': 1, 'K': 1}, {'p': 8, 'N': 2, 'B': 2, 'R': 2, 'Q': 1, 'K': 1}][:]  # W, B
-
-        # Placeholder to be able to access move_log[-1]. [from square, to square, piece moved, piece_captured, castling rights, enpassant square, enpassant made, zobrist key...
-        # ... piece_values, move_is_pawn_promotion]
-        self.move_log = [[0, 0, '--', '--', [True, True, True, True], None, False, self.zobrist_key, self.piece_values[:], self.is_pawn_promotion]]
+        # Placeholder to be able to access move_log[-1]. [move, piece moved, piece_captured, castling rights, enpassant square, enpassant made, zobrist key, piece_values]
+        self.move_log = [[(0, 0, 0), '--', '--', self.castling_rights[:], self.enpassant_square, False, self.zobrist_key, self.piece_values[:]]]
 
 # ---------------------------------------------------------------------------------------------------------
 #             Make and unmake move functions, Zobrist key
 # ---------------------------------------------------------------------------------------------------------
 
-    def make_move(self, start_square, end_square):
+    def make_move(self, start_square, end_square, move_type):
 
         # Square dependent on white or black
         from_square, to_square = (start_square, end_square) if self.is_white_turn else (120 - start_square + s.flip_board[start_square % 10], 120 - end_square + s.flip_board[end_square % 10])
         capture_square = end_square if not self.is_white_turn else 120 - end_square + s.flip_board[end_square % 10]
+
+        # Init values
+        castle_piece_value_mid, castle_piece_value_end = 0, 0
+        captured_piece_value_mid, captured_piece_value_end = 0, 0
+
+        if self.enpassant_square:
+            self.zobrist_key ^= self.zobrist_enpassant[self.enpassant_col]
+        self.enpassant_square = None
 
         # Update piece_moved and piece_captured
         self.piece_moved = self.board[start_square]
@@ -107,42 +125,16 @@ class GameState:
         self.zobrist_key ^= self.zobrist_board[end_square][self.piece_captured]  # Remove the piece that was on the end square
         self.zobrist_key ^= self.zobrist_board[end_square][self.piece_moved]  # Place the moved piece on its end square
 
-        # For debugging...
-        if self.piece_moved == '--':
-            for item in self.move_log:
-                print(item)
-            print(self.board)
-            print(start_square, end_square)
-            print(self.is_white_turn)
-
         # Update the king position
         if self.piece_moved == 'wK':
             self.white_king_location = end_square
         elif self.piece_moved == 'bK':
             self.black_king_location = end_square
 
-        # Pawn promotion
-        self.is_pawn_promotion = False
-        if (self.piece_moved == 'wp' and end_square in s.end_row_white) or (self.piece_moved == 'bp' and end_square in s.end_row_black):
-            self.is_pawn_promotion = True
-            self.board[end_square] = f'{self.piece_moved[0]}Q'  # Implement ability to promote to other pieces than queen later
-
-            self.piece_dict[not self.is_white_turn]['p'] -= 1
-            self.piece_dict[not self.is_white_turn]['Q'] += 1
-
-            self.zobrist_key ^= self.zobrist_board[end_square][self.piece_moved]  # Remove the pawn from end_square again since it is now a queen
-            self.zobrist_key ^= self.zobrist_board[end_square][f'{self.piece_moved[0]}Q']  # Place a queen there instead
-
-            moved_piece_value_change_mid = (-(s.piece_value_base_mid_game['p'] + s.piece_value_mid_game['p'][from_square]) +
-                                             (s.piece_value_base_mid_game['Q'] + s.piece_value_mid_game['Q'][to_square])) * self.midgame
-            moved_piece_value_change_end = (-(s.piece_value_base_end_game['p'] + s.piece_value_end_game['p'][from_square]) +
-                                             (s.piece_value_base_end_game['Q'] + s.piece_value_end_game['Q'][to_square])) * self.endgame
-
         # Update pawn columns list
         if self.piece_moved[1] == 'p' and (start_square - end_square) % 10 > 0:
             self.pawn_columns_list[not self.is_white_turn].remove(start_square % 10)
-            if not self.is_pawn_promotion:
-                self.pawn_columns_list[not self.is_white_turn].append(end_square % 10)
+            self.pawn_columns_list[not self.is_white_turn].append(end_square % 10)
         if self.piece_captured[1] == 'p':
             self.pawn_columns_list[self.is_white_turn].remove(end_square % 10)
 
@@ -153,56 +145,72 @@ class GameState:
         if self.piece_captured[1] == 'R':
             self.rook_columns_list[self.is_white_turn].remove(end_square % 10)
 
+        # Pawn promotion
+        if move_type in ['pQ', 'pR', 'pB', 'pN']:
+            self.board[end_square] = f'{self.piece_moved[0]}{move_type[1]}'
+
+            self.piece_dict[not self.is_white_turn]['p'] -= 1
+            self.piece_dict[not self.is_white_turn][f'{move_type[1]}'] += 1
+
+            self.zobrist_key ^= self.zobrist_board[end_square][self.piece_moved]  # Remove the pawn from end_square again since it now changed
+            self.zobrist_key ^= self.zobrist_board[end_square][f'{self.piece_moved[0]}{move_type[1]}']  # Place the promoted piece there instead
+
+            if (start_square - end_square) % 10 > 0:
+                self.pawn_columns_list[not self.is_white_turn].remove(end_square % 10)
+            else:
+                self.pawn_columns_list[not self.is_white_turn].remove(start_square % 10)
+
+            if move_type == 'pR':
+                self.rook_columns_list[not self.is_white_turn].append(end_square % 10)
+
+            moved_piece_value_change_mid = (-(s.piece_value_base_mid_game['p'] + s.piece_value_mid_game['p'][from_square]) +
+                                             (s.piece_value_base_mid_game[f'{move_type[1]}'] + s.piece_value_mid_game[f'{move_type[1]}'][to_square])) * self.midgame
+            moved_piece_value_change_end = (-(s.piece_value_base_end_game['p'] + s.piece_value_end_game['p'][from_square]) +
+                                             (s.piece_value_base_end_game[f'{move_type[1]}'] + s.piece_value_end_game[f'{move_type[1]}'][to_square])) * self.endgame
+
         # Castling logic, only if you have any castling rights left
-        castle_piece_value_mid, castle_piece_value_end = 0, 0
-        if any(self.castling_rights):
-            if self.piece_moved[1] == 'K' and abs(end_square - start_square) == 2:
+        elif move_type == 'ck':
+            exec('self.white_has_castled = True' if self.is_white_turn else 'self.black_has_castled = True')
+            king_end_pos = 97 if self.is_white_turn else 27
 
-                # Update the variable "has castled", used in the evaluation function
-                exec('self.white_has_castled = True' if self.is_white_turn else 'self.black_has_castled = True')
+            # Update board, rooks and Zobrist
+            self.board[king_end_pos + 1] = '--'  # Remove R
+            self.board[king_end_pos - 1] = f'{self.piece_moved[0]}R'  # Place R
 
-                # King side castle
-                king_end_pos = 97 if self.is_white_turn else 27
-                if end_square == king_end_pos:
-                    # Update board, rooks and Zobrist
-                    self.board[king_end_pos + 1] = '--'  # Remove R
-                    self.board[king_end_pos - 1] = f'{self.piece_moved[0]}R'  # Place R
+            self.rook_columns_list[not self.is_white_turn].remove(8)
+            self.rook_columns_list[not self.is_white_turn].append(6)
 
-                    self.rook_columns_list[not self.is_white_turn].remove(8)
-                    self.rook_columns_list[not self.is_white_turn].append(6)
+            self.zobrist_key ^= self.zobrist_board[king_end_pos + 1][f'{self.piece_moved[0]}R']  # Remove rook from its start square
+            self.zobrist_key ^= self.zobrist_board[king_end_pos - 1][f'{self.piece_moved[0]}R']  # Place rook on its new square
 
-                    self.zobrist_key ^= self.zobrist_board[king_end_pos + 1][f'{self.piece_moved[0]}R']  # Remove rook from its start square
-                    self.zobrist_key ^= self.zobrist_board[king_end_pos - 1][f'{self.piece_moved[0]}R']  # Place rook on its new square
+            castle_piece_value_mid = (-s.piece_value_mid_game['R'][king_end_pos + 1] + s.piece_value_mid_game['R'][king_end_pos - 1]) * self.midgame
+            castle_piece_value_end = (-s.piece_value_end_game['R'][king_end_pos + 1] + s.piece_value_end_game['R'][king_end_pos - 1]) * self.endgame
 
-                    castle_piece_value_mid = (-s.piece_value_mid_game['R'][king_end_pos + 1] + s.piece_value_mid_game['R'][king_end_pos - 1]) * self.midgame
-                    castle_piece_value_end = (-s.piece_value_end_game['R'][king_end_pos + 1] + s.piece_value_end_game['R'][king_end_pos - 1]) * self.endgame
+        elif move_type == 'cq':
+            exec('self.white_has_castled = True' if self.is_white_turn else 'self.black_has_castled = True')
+            king_end_pos = 93 if self.is_white_turn else 23
 
-                # Queen side castle
-                king_end_pos = 93 if self.is_white_turn else 23
-                if end_square == king_end_pos:
-                    # Update board and Zobrist
-                    self.board[king_end_pos - 2] = '--'  # Remove R
-                    self.board[king_end_pos + 1] = f'{self.piece_moved[0]}R'  # Place R
+            # Update board and Zobrist
+            self.board[king_end_pos - 2] = '--'  # Remove R
+            self.board[king_end_pos + 1] = f'{self.piece_moved[0]}R'  # Place R
 
-                    self.rook_columns_list[not self.is_white_turn].remove(1)
-                    self.rook_columns_list[not self.is_white_turn].append(4)
+            self.rook_columns_list[not self.is_white_turn].remove(1)
+            self.rook_columns_list[not self.is_white_turn].append(4)
 
-                    self.zobrist_key ^= self.zobrist_board[king_end_pos - 2][f'{self.piece_moved[0]}R']  # Remove rook from its start square
-                    self.zobrist_key ^= self.zobrist_board[king_end_pos + 1][f'{self.piece_moved[0]}R']  # Place rook on its new square
+            self.zobrist_key ^= self.zobrist_board[king_end_pos - 2][f'{self.piece_moved[0]}R']  # Remove rook from its start square
+            self.zobrist_key ^= self.zobrist_board[king_end_pos + 1][f'{self.piece_moved[0]}R']  # Place rook on its new square
 
-                    castle_piece_value_mid = (-s.piece_value_mid_game['R'][king_end_pos - 2] + s.piece_value_mid_game['R'][king_end_pos + 1]) * self.midgame
-                    castle_piece_value_end = (-s.piece_value_end_game['R'][king_end_pos - 2] + s.piece_value_end_game['R'][king_end_pos + 1]) * self.endgame
+            castle_piece_value_mid = (-s.piece_value_mid_game['R'][king_end_pos - 2] + s.piece_value_mid_game['R'][king_end_pos + 1]) * self.midgame
+            castle_piece_value_end = (-s.piece_value_end_game['R'][king_end_pos - 2] + s.piece_value_end_game['R'][king_end_pos + 1]) * self.endgame
 
         # Enpassant move
-        self.enpassant_made = False
-        if end_square == self.enpassant_square and self.piece_moved[1] == 'p':
-            self.enpassant_made = True
+        elif move_type == 'ep':
 
             # Remove captured pawn from board and Zobrist key
             d, color = (10, 'b') if self.is_white_turn else (-10, 'w')
             self.board[end_square + d] = '--'
             self.piece_captured = f'{color}p'
-            self.zobrist_key ^= self.zobrist_board[end_square + d]['--']
+            self.zobrist_key ^= self.zobrist_board[end_square + d][f'{color}p']
 
             self.pawn_columns_list[self.is_white_turn].remove(end_square % 10)
 
@@ -210,17 +218,12 @@ class GameState:
             capture_square += d
 
         # Update enpassant possible square
-        if abs(start_square - end_square) == 20 and self.piece_moved[1] == 'p':
+        elif move_type == 'ts':
             self.enpassant_square = (start_square + end_square) // 2  # Enpassant square is the mean of start_square and end_square for the pawn moving 2 squares
-            self.enpassant_row = start_square % 10 - 1
-            self.zobrist_key ^= self.zobrist_enpassant[self.enpassant_row]
-        else:
-            if self.enpassant_square:
-                self.zobrist_key ^= self.zobrist_enpassant[self.enpassant_row]
-            self.enpassant_square = None
+            self.enpassant_col = start_square % 10 - 1
+            self.zobrist_key ^= self.zobrist_enpassant[self.enpassant_col]
 
         # Update gamestate phase (opening, mid, endgame) and piece dict
-        captured_piece_value_mid = captured_piece_value_end = 0
         if self.piece_captured != '--':
 
             self.piece_dict[self.is_white_turn][self.piece_captured[1]] -= 1
@@ -232,7 +235,7 @@ class GameState:
             captured_piece_value_mid = (s.piece_value_base_mid_game[self.piece_captured[1]] + s.piece_value_mid_game[self.piece_captured[1]][capture_square]) * self.midgame
             captured_piece_value_end = (s.piece_value_base_end_game[self.piece_captured[1]] + s.piece_value_end_game[self.piece_captured[1]][capture_square]) * self.endgame
 
-        if not self.is_pawn_promotion:
+        if move_type not in ['pQ', 'pR', 'pB', 'pN']:
             moved_piece_value_change_mid = (-s.piece_value_mid_game[self.piece_moved[1]][from_square] + s.piece_value_mid_game[self.piece_moved[1]][to_square]) * self.midgame
             moved_piece_value_change_end = (-s.piece_value_end_game[self.piece_moved[1]][from_square] + s.piece_value_end_game[self.piece_moved[1]][to_square]) * self.endgame
 
@@ -249,8 +252,8 @@ class GameState:
         self.zobrist_key ^= self.zobrist_black_to_move
 
         # Update move log
-        self.move_log.append([start_square, end_square, self.piece_moved, self.piece_captured, self.castling_rights[:],
-                              self.enpassant_square, self.enpassant_made, self.zobrist_key, self.piece_values[:], self.is_pawn_promotion])
+        self.move_log.append([(start_square, end_square, move_type), self.piece_moved, self.piece_captured, self.castling_rights[:],
+                              self.enpassant_square, self.enpassant_made, self.zobrist_key, self.piece_values[:]])
 
         # Update 50 move clock and check if it has reached 50 moves
         if self.piece_captured != '--' or self.piece_moved[1] == 'p':
@@ -269,125 +272,115 @@ class GameState:
 
     def unmake_move(self):
 
-        # Only possible to unmake move if a move has been played
-        if len(self.move_log) > 1:
+        # Switch player turn back
+        self.is_white_turn = not self.is_white_turn
 
-            # Switch player turn back
-            self.is_white_turn = not self.is_white_turn
+        # Reset any stalemates or checkmates
+        self.is_check_mate, self.is_stale_mate = False, False
 
-            # Reset any stalemates or checkmates
-            self.is_check_mate, self.is_stale_mate = False, False
+        # Info about latest move
+        latest_move = self.move_log.pop()
+        start_square, end_square = latest_move[0][0], latest_move[0][1]
+        move_type = latest_move[0][2]
+        piece_moved, piece_captured = latest_move[1], latest_move[2]
 
-            # Info about latest move
-            latest_move = self.move_log.pop()
-            start_square, end_square = latest_move[0], latest_move[1]
-            piece_moved, piece_captured = latest_move[2], latest_move[3]
+        # Update board
+        self.board[start_square] = piece_moved
+        self.board[end_square] = piece_captured
 
-            # Update board
-            self.board[start_square] = piece_moved
-            self.board[end_square] = piece_captured
+        if piece_captured != '--':
 
-            if piece_captured != '--':
-                self.piece_dict[self.is_white_turn][piece_captured[1]] += 1
-
-            # Update pawn columns list
-            if piece_moved[1] == 'p' and (start_square - end_square) % 10 > 0:
-                self.pawn_columns_list[not self.is_white_turn].append(start_square % 10)
-                if not latest_move[9]:
-                    self.pawn_columns_list[not self.is_white_turn].remove(end_square % 10)
-            if piece_captured[1] == 'p':
-                self.pawn_columns_list[self.is_white_turn].append(end_square % 10)
-
-            # Update rook columns list
-            if piece_moved[1] == 'R' and (start_square - end_square) % 10 > 0:
-                self.rook_columns_list[not self.is_white_turn].append(start_square % 10)
-                self.rook_columns_list[not self.is_white_turn].remove(end_square % 10)
-            if piece_captured[1] == 'R':
-                self.rook_columns_list[self.is_white_turn].append(end_square % 10)
-
-            # Update promotion move
-            if latest_move[9]:
-                self.piece_dict[not self.is_white_turn]['p'] += 1
-                self.piece_dict[not self.is_white_turn]['Q'] -= 1
-
-            # Update the king position and the has_castled attribute
-            if piece_moved == 'wK':
-                self.white_king_location = start_square
-            elif piece_moved == 'bK':
-                self.black_king_location = start_square
-
-            if piece_moved[1] == 'K' and abs(end_square - start_square) == 2:
-
-                # Update has_castled variable
-                if piece_moved == 'wK':
-                    self.white_has_castled = False
-                else:
-                    self.black_has_castled = False
-
-                # King side castle
-                king_end_pos = 97 if self.is_white_turn else 27
-                if end_square == king_end_pos:
-                    # Update board
-                    self.board[king_end_pos - 1] = '--'  # Remove R
-                    self.board[king_end_pos + 1] = f'{piece_moved[0]}R'  # Place R
-
-                    self.rook_columns_list[not self.is_white_turn].remove(6)
-                    self.rook_columns_list[not self.is_white_turn].append(8)
-
-                # Queen side castle
-                king_end_pos = 93 if self.is_white_turn else 23
-                if end_square == king_end_pos:
-                    # Update board
-                    self.board[king_end_pos + 1] = '--'  # Remove R
-                    self.board[king_end_pos - 2] = f'{piece_moved[0]}R'  # Place R
-
-                    self.rook_columns_list[not self.is_white_turn].remove(4)
-                    self.rook_columns_list[not self.is_white_turn].append(1)
-
-            # Undo enpassant move if such move was made
-            if latest_move[6]:
-                self.board[start_square] = piece_moved
-                self.board[end_square] = '--'
-
-                d, color = (10, 'b') if self.is_white_turn else (-10, 'w')
-                self.board[end_square + d] = f'{color}p'
+            # Update piece dict
+            self.piece_dict[self.is_white_turn][piece_captured[1]] += 1
 
             # Update gamestate phase (opening, mid, endgame)
-            if piece_captured != '--':
-                self.gamestate_phase += s.piece_phase_calc[piece_captured[1]]
+            self.gamestate_phase += s.piece_phase_calc[piece_captured[1]]
 
-                self.midgame = max(0, (self.gamestate_phase - s.endgame_phase_limit) / (24 - s.endgame_phase_limit))
-                self.endgame = min(1, (24 - self.gamestate_phase) / (24 - s.endgame_phase_limit))
+            self.midgame = max(0, (self.gamestate_phase - s.endgame_phase_limit) / (24 - s.endgame_phase_limit))
+            self.endgame = min(1, (24 - self.gamestate_phase) / (24 - s.endgame_phase_limit))
 
-            # Update things from the latest move
-            self.piece_moved, self.piece_captured = self.move_log[-1][2], self.move_log[-1][3]
-            self.castling_rights = self.move_log[-1][4][:]
-            self.enpassant_square = self.move_log[-1][5]
-            self.enpassant_made = self.move_log[-1][6]
-            self.zobrist_key = self.move_log[-1][7]
-            self.piece_values = self.move_log[-1][8][:]
-            self.is_pawn_promotion = self.move_log[-1][9]
+        # Update pawn columns list
+        if piece_moved[1] == 'p' and (start_square - end_square) % 10 > 0:
+            self.pawn_columns_list[not self.is_white_turn].append(start_square % 10)
+            if move_type not in ['pQ', 'pR', 'pB', 'pN']:
+                self.pawn_columns_list[not self.is_white_turn].remove(end_square % 10)
+        if piece_captured[1] == 'p':
+            self.pawn_columns_list[self.is_white_turn].append(end_square % 10)
 
-            # Update 50 move clock if it is not at 0
-            self.fifty_move_clock = max(0, self.fifty_move_clock - 0.5)
+        # Update rook columns list
+        if piece_moved[1] == 'R' and (start_square - end_square) % 10 > 0:
+            self.rook_columns_list[not self.is_white_turn].append(start_square % 10)
+            self.rook_columns_list[not self.is_white_turn].remove(end_square % 10)
+        if piece_captured[1] == 'R':
+            self.rook_columns_list[self.is_white_turn].append(end_square % 10)
 
-    def make_nullmove(self):
-        # Switch player turn
-        self.is_white_turn = not self.is_white_turn
+        # Update the king position and the has_castled attribute
+        if piece_moved == 'wK':
+            self.white_king_location = start_square
+        elif piece_moved == 'bK':
+            self.black_king_location = start_square
 
-        latest_move = self.move_log[-1][:]
-        latest_move[2], latest_move[3] = '--', '--'  # No piece is moved
-        latest_move[5], latest_move[6] = None, False
+        # Update promotion move
+        if move_type in ['pQ', 'pR', 'pB', 'pN']:
+            self.piece_dict[not self.is_white_turn]['p'] += 1
+            self.piece_dict[not self.is_white_turn][f'{move_type[1]}'] -= 1
 
-        self.move_log.append(latest_move)
+            if (start_square - end_square) % 10 == 0:
+                self.pawn_columns_list[not self.is_white_turn].append(start_square % 10)
 
-    def unmake_nullmove(self):
+            if move_type == 'pR':
+                self.rook_columns_list[not self.is_white_turn].remove(end_square % 10)
 
-        # Switch player turn
-        self.is_white_turn = not self.is_white_turn
+        elif move_type == 'ck':
 
-        # Remove last move from move list
-        self.move_log.pop()
+            # Update has_castled variable
+            if piece_moved == 'wK':
+                self.white_has_castled = False
+            else:
+                self.black_has_castled = False
+
+            # Update board
+            king_end_pos = 97 if self.is_white_turn else 27
+            self.board[king_end_pos - 1] = '--'  # Remove R
+            self.board[king_end_pos + 1] = f'{piece_moved[0]}R'  # Place R
+
+            self.rook_columns_list[not self.is_white_turn].remove(6)
+            self.rook_columns_list[not self.is_white_turn].append(8)
+
+        elif move_type == 'cq':
+
+            # Update has_castled variable
+            if piece_moved == 'wK':
+                self.white_has_castled = False
+            else:
+                self.black_has_castled = False
+
+            # Update board
+            king_end_pos = 93 if self.is_white_turn else 23
+            self.board[king_end_pos + 1] = '--'  # Remove R
+            self.board[king_end_pos - 2] = f'{piece_moved[0]}R'  # Place R
+
+            self.rook_columns_list[not self.is_white_turn].remove(4)
+            self.rook_columns_list[not self.is_white_turn].append(1)
+
+        # Undo enpassant move if such move was made
+        elif move_type == 'ep':
+            self.board[start_square] = piece_moved
+            self.board[end_square] = '--'
+
+            d, color = (10, 'b') if self.is_white_turn else (-10, 'w')
+            self.board[end_square + d] = f'{color}p'
+
+        # Update things from the latest move [move, piece moved, piece_captured, castling rights, enpassant square, enpassant made, zobrist key, piece_values]
+        self.piece_moved, self.piece_captured = self.move_log[-1][1], self.move_log[-1][2]
+        self.castling_rights = self.move_log[-1][3][:]
+        self.enpassant_square = self.move_log[-1][4]
+        self.enpassant_made = self.move_log[-1][5]
+        self.zobrist_key = self.move_log[-1][6]
+        self.piece_values = self.move_log[-1][7][:]
+
+        # Update 50 move clock if it is not at 0
+        self.fifty_move_clock = max(0, self.fifty_move_clock - 0.5)
 
 # ---------------------------------------------------------------------------------------------------------
 #                    Helper functions
@@ -398,37 +391,46 @@ class GameState:
 
         # King moves
         if self.piece_moved[1] == 'K':
+
+            # Only update Zobrist key if castling rights are changing
+            if self.castling_rights[rights[0]] or self.castling_rights[rights[1]]:
+                self.zobrist_key ^= self.zobrist_castling[rights[0]]
+                self.zobrist_key ^= self.zobrist_castling[rights[1]]
+
             self.castling_rights[rights[0]] = False
             self.castling_rights[rights[1]] = False
-            self.zobrist_key ^= self.zobrist_castling[rights[0]]
-            self.zobrist_key ^= self.zobrist_castling[rights[1]]
 
         # Rook moves
         rook_squares = [91, 98] if self.is_white_turn else [21, 28]
         if self.board[rook_squares[0]][1] != 'R':  # If left rook moves
+            if self.castling_rights[rights[1]]:
+                self.zobrist_key ^= self.zobrist_castling[rights[1]]
             self.castling_rights[rights[1]] = False
-            self.zobrist_key ^= self.zobrist_castling[rights[1]]
-        elif self.board[rook_squares[1]][1] != 'R':  # If right rook moves
+        if self.board[rook_squares[1]][1] != 'R':  # If right rook moves
+            if self.castling_rights[rights[0]]:
+                self.zobrist_key ^= self.zobrist_castling[rights[0]]
             self.castling_rights[rights[0]] = False
-            self.zobrist_key ^= self.zobrist_castling[rights[0]]
 
         # Rook gets captured
         rook_logic = (91, 98) if not self.is_white_turn else (21, 28)
         rights = (0, 1) if not self.is_white_turn else (2, 3)
         if rook_logic[0] == end_square:  # If left rook is captured
+            if self.castling_rights[rights[1]]:
+                self.zobrist_key ^= self.zobrist_castling[rights[1]]
             self.castling_rights[rights[1]] = False
-            self.zobrist_key ^= self.zobrist_castling[rights[1]]
-        elif rook_logic[1] == end_square:  # If right rook is captured
+
+        if rook_logic[1] == end_square:  # If right rook is captured
+            if self.castling_rights[rights[0]]:
+                self.zobrist_key ^= self.zobrist_castling[rights[0]]
             self.castling_rights[rights[0]] = False
-            self.zobrist_key ^= self.zobrist_castling[rights[0]]
 
     def is_three_fold(self):
         cnt = 0
         for pos in reversed(self.move_log[:-1]):
             # Break early if piece captured or pawn moved since they cannot be brought back
-            if pos[2][1] == 'p' or pos[3] != '--':
+            if pos[1][1] == 'p' or pos[2] != '--':
                 return False
-            if self.zobrist_key == pos[7]:
+            if self.zobrist_key == pos[6]:
                 cnt += 1
             if cnt == 2:
                 return True
@@ -438,19 +440,62 @@ class GameState:
 # ---------------------------------------------------------------------------------------------------------
 
     def init_piece_values(self):
-        piece_values = [0, 0]
-
         for square in self.board:
             color, piece = self.board[square][0], self.board[square][1]
             if color == 'w':
-                piece_values[0] += s.piece_value_base_mid_game[piece] + s.piece_value_mid_game[piece][square]
+                self.piece_values[0] += s.piece_value_base_mid_game[piece] + s.piece_value_mid_game[piece][square]
             elif color == 'b':
                 square_flipped = 120 - square + s.flip_board[square % 10]
-                piece_values[1] += s.piece_value_base_mid_game[piece] + s.piece_value_mid_game[piece][square_flipped]
+                self.piece_values[1] += s.piece_value_base_mid_game[piece] + s.piece_value_mid_game[piece][square_flipped]
 
-        return piece_values
+    def init_piece_dict(self):
+        for square in self.board:
+            piece_type, color = self.board[square][1], self.board[square][0]
+            if piece_type in 'pNBRQK':
+                if color == 'w':
+                    self.piece_dict[0][piece_type] += 1
+                elif color == 'b':
+                    self.piece_dict[1][piece_type] += 1
 
-    # Init the zobrist board at the start of a game
+    def init_piece_columns(self):
+        for square in self.board:
+            piece_type, color = self.board[square][1], self.board[square][0]
+            if piece_type == 'R':
+                if color == 'w':
+                    self.rook_columns_list[0].append(square % 10)
+                elif color == 'b':
+                    self.rook_columns_list[1].append(square % 10)
+            if piece_type == 'p':
+                if color == 'w':
+                    self.pawn_columns_list[0].append(square % 10)
+                elif color == 'b':
+                    self.pawn_columns_list[1].append(square % 10)
+
+    def init_gamestate(self):
+        for square in self.board:
+            if self.board[square] not in ['--', 'FF']:
+                piece_type, color = self.board[square][1], self.board[square][0]
+
+                self.gamestate_phase += s.piece_phase_calc[piece_type]
+
+        self.midgame = max(0, (self.gamestate_phase - s.endgame_phase_limit) / (24 - s.endgame_phase_limit))
+        self.endgame = min(1, (24 - self.gamestate_phase) / (24 - s.endgame_phase_limit))
+
+    def init_king_positions(self):
+        for square in self.board:
+            piece_type, color = self.board[square][1], self.board[square][0]
+            if piece_type == 'K':
+                if color == 'w':
+                    self.white_king_location = square
+                else:
+                    self.black_king_location = square
+
+    def update_king_distance(self):
+
+
+        s.king_distance_table = 2
+        pass
+
     def init_zobrist(self):
         zobrist_key = 0
 
@@ -490,8 +535,6 @@ class GameState:
     # Get all moves considering checks
     def get_valid_moves(self):
 
-        moves = self.get_all_possible_moves()
-
         king_pos = self.white_king_location if self.is_white_turn else self.black_king_location
 
         # Find if is in check and all the possible pinned pieces
@@ -499,6 +542,7 @@ class GameState:
 
         if self.is_in_check:
             if len(self.checks) == 1:  # Single check
+                moves = self.get_all_possible_moves()
                 check = self.checks[0]
                 checking_piece_pos = check[0]
                 piece_checking = self.board[check[0]]  # Enemy piece that is causing the check
@@ -517,6 +561,8 @@ class GameState:
             else:  # Double check, only king can move
                 moves = []
                 self.get_king_moves(king_pos, moves, False)
+        else:
+            moves = self.get_all_possible_moves()
 
         # Check for check mate and stale mate
         if len(moves) == 0:
@@ -527,12 +573,6 @@ class GameState:
             else:
                 self.is_stale_mate = True
                 self.kind_of_stalemate = 'Stalemate'
-
-        '''# Mobility counter
-        if self.is_white_turn:
-            self.white_mobility = len(moves)
-        else:
-            self.black_mobility = len(moves)'''
 
         return moves
 
@@ -634,25 +674,66 @@ class GameState:
                 break
 
         # Parameters depending on if white or black turn
-        move_dir, start_row, enemy_color = (-10, s.start_row_white, 'b') if self.is_white_turn else (10, s.start_row_black, 'w')
+        move_dir, start_row, enemy_color, end_row, friendly_color = \
+            (-10, s.start_row_white, 'b', s.end_row_white, 'w') if self.is_white_turn else (10, s.start_row_black, 'w', s.end_row_black, 'b')
 
         # 1 square move
         if self.board[square + move_dir] == '--':
             if not piece_pinned or pin_direction in (move_dir, -move_dir):
-                moves.append((square, square + move_dir))
+                if square + move_dir in end_row:
+                    moves.append((square, square + move_dir, 'pQ'))
+                    moves.append((square, square + move_dir, 'pR'))
+                    moves.append((square, square + move_dir, 'pB'))
+                    moves.append((square, square + move_dir, 'pN'))
+                else:
+                    moves.append((square, square + move_dir, 'no'))
                 # 2 square move
                 if square in start_row and self.board[square + 2*move_dir] == '--':
-                    moves.append((square, square + 2*move_dir))
+                    moves.append((square, square + 2*move_dir, 'ts'))
 
         # Capture and enpassant to the left
-        if self.board[square + move_dir - 1][0] == enemy_color or square + move_dir - 1 == self.enpassant_square:
+        if self.board[square + move_dir - 1][0] == enemy_color:
             if not piece_pinned or pin_direction == move_dir - 1:
-                moves.append((square, square + move_dir - 1))
+                if square + move_dir in end_row:
+                    moves.append((square, square + move_dir - 1, 'pQ'))
+                    moves.append((square, square + move_dir - 1, 'pR'))
+                    moves.append((square, square + move_dir - 1, 'pB'))
+                    moves.append((square, square + move_dir - 1, 'pN'))
+                else:
+                    moves.append((square, square + move_dir - 1, 'no'))
+        elif square + move_dir - 1 == self.enpassant_square:
+            if not piece_pinned or pin_direction == move_dir - 1:
+                king_pos = self.white_king_location if self.is_white_turn else self.black_king_location
+
+                # Check if the move would result in check
+                self.board[square], self.board[square - 1] = '--', '--'
+                is_check = self.check_for_checks(king_pos)
+                self.board[square], self.board[square - 1] = f'{friendly_color}p', f'{enemy_color}p'
+
+                if not is_check:
+                    moves.append((square, square + move_dir - 1, 'ep'))
 
         # Capture and enpassant to the right
-        if self.board[square + move_dir + 1][0] == enemy_color or square + move_dir + 1 == self.enpassant_square:
+        if self.board[square + move_dir + 1][0] == enemy_color:
             if not piece_pinned or pin_direction == move_dir + 1:
-                moves.append((square, square + move_dir + 1))
+                if square + move_dir in end_row:
+                    moves.append((square, square + move_dir + 1, 'pQ'))
+                    moves.append((square, square + move_dir + 1, 'pR'))
+                    moves.append((square, square + move_dir + 1, 'pB'))
+                    moves.append((square, square + move_dir + 1, 'pN'))
+                else:
+                    moves.append((square, square + move_dir + 1, 'no'))
+        elif square + move_dir + 1 == self.enpassant_square:
+            if not piece_pinned or pin_direction == move_dir + 1:
+                king_pos = self.white_king_location if self.is_white_turn else self.black_king_location
+
+                # Check if the move would result in check
+                self.board[square], self.board[square + 1] = '--', '--'
+                is_check = self.check_for_checks(king_pos)
+                self.board[square], self.board[square + 1] = f'{friendly_color}p', f'{enemy_color}p'
+
+                if not is_check:
+                    moves.append((square, square + move_dir + 1, 'ep'))
 
     def get_knight_moves(self, square, moves, piece_pinned):
 
@@ -666,7 +747,7 @@ class GameState:
         for d in s.knight_moves:
             end_square = square + d
             if self.board[end_square] != 'FF' and self.board[end_square][0] != friendly_color and not piece_pinned:
-                moves.append((square, end_square))
+                moves.append((square, end_square, 'no'))
 
     def get_bishop_moves(self, square, moves, piece_pinned):
         pin_direction = ()
@@ -684,7 +765,7 @@ class GameState:
                 end_piece = self.board[end_square][0]
                 if end_piece in f'{enemy_color}-':
                     if not piece_pinned or pin_direction in (-d, d):  # Able to move towards and away from pin
-                        moves.append((square, end_square))
+                        moves.append((square, end_square, 'no'))
                         if end_piece == enemy_color:
                             break
                 else:
@@ -706,7 +787,7 @@ class GameState:
                 end_piece = self.board[end_square][0]
                 if end_piece in f'{enemy_color}-':
                     if not piece_pinned or pin_direction in (d, -d):  # Able to move towards and away from pin
-                        moves.append((square, end_square))
+                        moves.append((square, end_square, 'no'))
                         if end_piece == enemy_color:
                             break
                 else:
@@ -728,7 +809,7 @@ class GameState:
                 end_piece = self.board[end_square][0]
                 if end_piece in f'{enemy_color}-':
                     if not piece_pinned or pin_direction in (-d, d):  # Able to move towards and away from pin
-                        moves.append((square, end_square))
+                        moves.append((square, end_square, 'no'))
                         if end_piece == enemy_color:
                             break
                 else:
@@ -747,7 +828,7 @@ class GameState:
                 self.board[end_square] = end_piece
 
                 if not is_in_check:
-                    moves.append((square, end_square))
+                    moves.append((square, end_square, 'no'))
 
         # Castling:
         # Can't castle if in check, if square between K or R is under attack, or if castling rights are broken (K or R is not in their original places)
@@ -762,7 +843,7 @@ class GameState:
                 is_in_check_2 = self.check_for_checks(square + 2)
 
                 if not (is_in_check_1 or is_in_check_2):
-                    moves.append((square, square + 2))
+                    moves.append((square, square + 2, 'ck'))
 
             # Castle Queen side
             if self.castling_rights[castling_rights[1]] and all(x == '--' for x in (self.board[square - 1], self.board[square - 2], self.board[square - 3])):
@@ -772,7 +853,7 @@ class GameState:
                 is_in_check_2 = self.check_for_checks(square - 2)
 
                 if not (is_in_check_1 or is_in_check_2):
-                    moves.append((square, square - 2))
+                    moves.append((square, square - 2, 'cq'))
 
 # ---------------------------------------------------------------------------------------------------------
 #                        Special check for check function for speed up
@@ -780,40 +861,25 @@ class GameState:
 
     # Checks if there are any pinned pieces or current checks
     def check_for_checks(self, square):
-        is_in_check = False
 
         enemy_color, friendly_color = ('b', 'w') if self.is_white_turn else ('w', 'b')
 
         # Check out from all directions from the king
         for i in range(8):
             d = s.directions[i]
-            possible_pin = False
             for j in range(8):  # Check the entire row/column in that direction
                 end_square = square + d*j
                 piece_color, piece_type = self.board[end_square][0], self.board[end_square][1]
                 if piece_type != 'F':
                     if piece_color == friendly_color and piece_type != 'K':
-                        if not possible_pin:  # First own piece, possible pin
-                            possible_pin = True
-                        else:  # 2nd friendly piece, no pin
-                            break
+                        break
                     elif piece_color == enemy_color:
-                        # 5 different cases:
-                        # 1. Orthogonally from king and piece is a rook
-                        # 2. Diagonally from king and piece is a bishop
-                        # 3. 1 square away diagonally from king and piece is a pawn
-                        # 4. Any direction and piece is a queen
-                        # 5. Any direction 1 square away and piece is a king
                         if (0 <= i <= 3 and piece_type == 'R') or \
                                 (4 <= i <= 7 and piece_type == 'B') or \
                                 (j == 1 and piece_type == 'p' and ((enemy_color == 'w' and 6 <= i <= 7) or (enemy_color == 'b' and 4 <= i <= 5))) or \
                                 (piece_type == 'Q') or \
                                 (j == 1 and piece_type == 'K'):
-                            if not possible_pin:  # No friendly piece is blocking -> is check
-                                is_in_check = True
-                                break
-                            else:  # Friendly piece is blocking -> pinned piece
-                                break
+                            return True
                         else:  # Enemy piece that is not applying check or pin
                             break
                 else:  # i, j is off board
@@ -825,6 +891,6 @@ class GameState:
             end_piece = self.board[end_square]
             if end_piece != 'FF':
                 if end_piece[0] == enemy_color and end_piece[1] == 'N':  # Enemy knight attacking king
-                    is_in_check = True
+                    return True
 
-        return is_in_check
+        return False
