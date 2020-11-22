@@ -6,9 +6,6 @@ At start up you will be able to chose settings as in below image. You can put in
 
 <figure>
     <img src='https://i.ibb.co/c1jtwCX/start-up.png' alt='missing' />
-    <figcaption><i>The options available from the start-up screen.</i></figcaption>
-  <br>
-  <br>
 </figure>
 
 In the file settings.py you will find other settings for the game and GUI in general.
