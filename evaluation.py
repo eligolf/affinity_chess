@@ -90,6 +90,15 @@ def evaluate_2(gamestate, depth):
         white_score += gamestate.piece_dict[0]['B'] * s.bishop_endgame_bonus
         black_score += gamestate.piece_dict[1]['B'] * s.bishop_endgame_bonus
 
+        # Move towards the other king if the other side has no queen and rooks, and you have queen or rooks
+        # Also no pawns on the board
+        if gamestate.piece_dict[0]['p'] == 0 and gamestate.piece_dict[1]['p'] == 0:
+
+            # White advantage
+            if gamestate.piece_dict[1]['R'] == 0 and gamestate.piece_dict[1]['Q'] == 0:
+                if gamestate.piece_dict[0]['R'] >= 1 or gamestate.piece_dict[0]['Q'] >= 1:
+                    pass
+
     return black_score - white_score
 
 
