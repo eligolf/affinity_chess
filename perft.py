@@ -4,7 +4,6 @@
 
 import settings as s
 import board as b
-import perft_positions as p
 
 import pandas as pd
 import xlsxwriter as xlsw
@@ -37,7 +36,7 @@ class Perft:
 
     def run_perft(self):
 
-        for test_case in p.test_positions:
+        for test_case in test_positions:
 
             answers = test_case.split()[-1].split(',')[1:]
             fen = ' '.join([test_case.split()[0], test_case.split()[1], test_case.split()[2], test_case.split()[3].split(',')[0]])
@@ -87,4 +86,7 @@ class Perft:
 
 
 # Run perft tests
+tests = "test_positions.txt"
+temp = open(tests, "r")
+test_positions = temp.readlines()
 Perft().run_perft()
