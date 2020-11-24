@@ -1,5 +1,5 @@
 # Introduction
-Affinity Chess is a chess program/engine written in Python as a hobby project to learn more about programming. The program allows you to play against another human or against the built in AI.
+Affinity Chess is a chess program/engine written in Python as a hobby project to learn more about programming in general. The program allows you to play against another human or against the built in AI.
 
 # Getting started
 At start up you will be able to chose settings as in below image. You can put in a FEN position and use that as start position, or leave that field empty to use the normal start up position in chess. 
@@ -50,17 +50,7 @@ Future implementation ideas:
 - [ ] Different sound for different type of moves (capture piece, castling etc).
   
 # AI features
-Three different levels:
-<ol start="0">
-<li>Picks a random move from all valid moves.</li>
-<li>Looks 1 half move ahead, makes an evaluation, and picks the top move.</li>
-<li>TBD.</li>
-<li>Full Negamax algorithm.</li>
-</ol>
-
-Level 3 information:
--
-The Level 3 AI is based on a Negamax algorithm with the following features included:
+The AI is based on a Negamax algorithm with the following features currently included:
 - [X] Alpha-beta pruning
 - [X] Iterative deepening
 - [X] Transposition Table
@@ -68,19 +58,17 @@ The Level 3 AI is based on a Negamax algorithm with the following features inclu
   - Best move from previous iterations
   - Killer moves
   - MVV/LVA
-  - Internal Iterative Deepening
 
-There is also a small opening book included. 
+You also have the ability to let the AI use the built in opening books. Or you can add your own polyglot opening book (.bin) to the 'opening_books' folder.  
 
 Future implementation ideas:
-- [ ] Make negamax stop at exactly the maximum search time and return the best move from the previous iteration
-- [ ] Bitboard representation
 - [ ] Hash moves move ordering
 - [ ] Larger opening book/other opening concept
 - [ ] Null move
 - [ ] Quiscience search
 - [ ] Late move reduction (LMR)
 - [ ] Print out the PV line that AI think is best
+- [ ] Make negamax stop at exactly the maximum search time and return the best move from the previous iteration
 
 # Evaluation function
 You have the ability to chose the level of evaluation in the settings file. Features for the level 2 evaluation function are as follows:
