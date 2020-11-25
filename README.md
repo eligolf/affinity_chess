@@ -68,7 +68,7 @@ Future implementation ideas:
 - [ ] Obtain the PV line
 - [ ] Make negamax stop at exactly the maximum search time and return the best move from the previous iteration
 
-**Evaluation function**
+### Evaluation function
 
 The evaluation function is located in evaluation.py. Some parameters for the evaluation are updated in the move/unmake move functions in the GameState class. Currently the following parameters are considered when the AI evaluates a position.  
 - [X] Checkmate and stalemate
