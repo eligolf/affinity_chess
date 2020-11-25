@@ -48,7 +48,7 @@ Affinity Chess supports the rules of normal chess.
 Future implementation ideas:
 - [ ] Make the GUI larger to include printing e.g. AI evaluation and the current move log. Possibly change concept from Pygame to PySimpleGUI or some other more GUI friendly module. 
   
-# AI features
+# AI
 The AI is based on a Negamax algorithm with the following features currently included:
 - [X] Alpha-beta pruning
 - [X] Iterative deepening
@@ -68,7 +68,8 @@ Future implementation ideas:
 - [ ] Obtain the PV line
 - [ ] Make negamax stop at exactly the maximum search time and return the best move from the previous iteration
 
-# Evaluation function
+**Evaluation function**
+
 The evaluation function is located in evaluation.py. Some parameters for the evaluation are updated in the move/unmake move functions in the GameState class. Currently the following parameters are considered when the AI evaluates a position.  
 - [X] Checkmate and stalemate
 - [X] Interpolation between midgame and endgame phase
