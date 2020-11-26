@@ -37,6 +37,7 @@ class Ai:
 
         # Init variables
         nodes = {}
+        self.valid_moves_history = {}
 
         for depth in range(gamestate.max_search_depth + 1):
             self.killer_moves[depth] = []
