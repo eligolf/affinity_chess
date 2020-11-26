@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------------------
-#            GUI file running the game
+#                     GUI file running the game
 # --------------------------------------------------------------------------------
 import board as b
 import settings as s
@@ -42,22 +42,9 @@ class Gui:
         # Moves
         self.moves_list = ''
         self.latest_move = [(-100, -100, '')]
-        self.promotion_moves = []
 
         # Game parameters
         self.start_fen = s.start_fen
-        self.game_mode = 'ai'
-        self.is_ai_white = False
-        self.is_white_turn = True
-        self.max_search_depth = 6
-
-        # Start window
-        sg.theme('DarkAmber')
-        self.start_pop_up()
-
-        # Init Gamestate and AI
-        self.gamestate = b.GameState(self.start_fen, self.game_mode, self.is_ai_white, self.max_search_depth)
-        self.ai = ai.Ai()
 
         # Keep track of mouse button presses and mouse movements
         self.is_dragging = False
@@ -65,13 +52,22 @@ class Gui:
         self.x, self.y = 0, 0
         self.selected_square = 0
 
-        # Flip board
-        if self.game_mode == 'ai':
-            self.is_flipped = self.is_ai_white
-        else:
-            self.is_flipped = not self.is_white_turn
+        # Start window to get user input for game settings
+        self.is_started = False
+        self.is_flipped = False
+        self.draw('')
+        sg.theme('DarkAmber')
+        self.start_pop_up()
+        self.is_started = True
 
-        # Flag for when a move is made. Used to determine if AI should play white or black
+        # Init Gamestate and AI
+        self.gamestate = b.GameState(self.start_fen, self.game_mode, self.is_ai_white, self.max_search_depth)
+        self.ai = ai.Ai()
+
+        # Flip board if AI is playing as white
+        self.is_flipped = self.is_ai_white if self.game_mode == 'ai' else not self.is_white_turn
+
+        # Flag for when a move is made by the human player
         self.move_made = self.is_ai_white if self.gamestate.is_white_turn else not self.is_ai_white
 
     def main(self):
@@ -106,13 +102,16 @@ class Gui:
                 elif event.type == pygame.MOUSEBUTTONUP:
                     if event.button == 1:
                         self.is_dragging = False
-                        start_square, end_square = self.selected_square, self.get_square_under_mouse()
-                        move = (start_square, end_square)
+                        move = (self.selected_square, self.get_square_under_mouse())
                         valid_moves = self.gamestate.get_valid_moves()
                         for possible_move in valid_moves:
+
+                            # Promotion moves
                             if move == (possible_move[0], possible_move[1]) and possible_move[2] in ['pQ', 'pR', 'pB', 'pN']:
-                                self.chose_promotion(possible_move)
+                                self.chose_promotion_piece(possible_move)
                                 break
+
+                            # Other moves
                             elif move == (possible_move[0], possible_move[1]) and possible_move[2] not in ['pQ', 'pR', 'pB', 'pN']:
                                 self.process_move(possible_move)
                                 break
@@ -124,7 +123,7 @@ class Gui:
                 # Keyboard events
                 elif event.type == pygame.KEYDOWN:
 
-                    # Unmake move by pressing 'z'-key
+                    # Unmake move by pressing 'z'-key, only if not being in start position
                     if event.key == pygame.K_z:
                         if len(self.gamestate.move_log) > 1:
                             self.unmake_a_move()
@@ -139,7 +138,7 @@ class Gui:
                     elif event.key == pygame.K_f:
                         self.is_flipped = not self.is_flipped
 
-            # Update game and screen after human move
+            # Draw the screen after human move
             self.draw(self.gamestate.get_valid_moves())
 
             # Check if stalemated/checkmated and stop the game if so
@@ -147,9 +146,9 @@ class Gui:
                 running = False
                 game_over_messages(self.gamestate.is_check_mate, self.gamestate.white_wins, self.gamestate.kind_of_stalemate)
 
-            # If move made and game not over, change to AI if that option is chosen. Otherwise human vs human.
+            # If move made and game not over, change to AI if that option is chosen.
             if (self.move_made, running, self.game_mode) == (True, True, 'ai'):
-                move, evaluation = self.ai.ai_make_move(self.gamestate, self.moves_list)
+                move, evaluation = self.ai.ai_make_move(self.gamestate)
                 self.process_move(move)
                 self.print_eval(evaluation)
 
@@ -170,18 +169,22 @@ class Gui:
                     square_color = s.board_colors[(row + col) % 2]
                     pygame.draw.rect(self.screen, square_color, pygame.Rect(x, y, w, w))
 
-                    # Highlight squares
-                    self.highlight_squares(valid_moves)
+                    # Highlight squares if game is started
+                    if self.is_started:
+                        self.highlight_squares(valid_moves)
 
                     # Pieces
-                    piece = self.gamestate.board[row * 10 + col]
+                        piece = self.gamestate.board[row * 10 + col]
+                    else:
+                        piece = s.start_board[row * 10 + col]
                     if piece != '--' and (row * 10 + col != self.selected_square or not self.is_dragging):
                         self.screen.blit(s.images[piece], pygame.Rect(x, y, w, w))
 
         # Draw dragged piece
-        if self.is_dragging and self.gamestate.board[self.selected_square] not in ['--', 'FF']:
-            piece = self.gamestate.board[self.selected_square]
-            self.screen.blit(s.images[piece], pygame.Rect(self.x, self.y, s.sq_size, s.sq_size))
+        if self.is_started:
+            if self.is_dragging and self.gamestate.board[self.selected_square] not in ['--', 'FF']:
+                piece = self.gamestate.board[self.selected_square]
+                self.screen.blit(s.images[piece], pygame.Rect(self.x, self.y, s.sq_size, s.sq_size))
 
         # Update screen
         pygame.display.flip()
@@ -222,15 +225,15 @@ class Gui:
     def print_eval(self, evaluation):
         evaluation = evaluation
 
-        if self.ai.is_in_opening and s.play_with_opening_book:
-            evaluation = '0.00 (Opening: ' + str(self.ai.opening_name) + ')'
+        if self.ai.is_in_opening:
+            evaluation = '0.00 (Opening)'
         else:
             if evaluation > 1e6:
                 evaluation = 'AI wins'
             elif evaluation < -1e6:
                 evaluation = 'Human wins'
             else:
-                evaluation = round(evaluation / s.eval_level, 2)
+                evaluation = round(evaluation / 100, 2)
 
         print('-------------------------')
         print(self.moves_list)
@@ -246,32 +249,26 @@ class Gui:
 
         # Make the move and update move info
         self.gamestate.make_move(move[0], move[1], move[2])
+        self.gamestate.move_counter += 0.5  # Increase move counter
         self.latest_move.append(move)
         self.add_move_to_list(move[0], move[1])  # Add move to list of made moves
-        self.gamestate.move_counter += 0.5  # Increase move counter
 
         # Play a sound when a move is made
         if s.toggle_sound:
-            if self.gamestate.piece_captured != '--':
-                sounding = pygame.mixer.Sound('sounds/capture.mp3')
-                sounding.play(loops=0, maxtime=0, fade_ms=0)
-            else:
-                sounding = pygame.mixer.Sound('sounds/move.mp3')
-                sounding.play(loops=0, maxtime=0, fade_ms=0)
+            sound = pygame.mixer.Sound('sounds/capture.wav') if self.gamestate.piece_captured != '--' else pygame.mixer.Sound('sounds/move.wav')
+            sound.play()
 
-        # Evaluate current position after the move is made
+        # Evaluate current position after the move is made and print the result
         if s.static_evaluation:
             evaluation = e.evaluate(self.gamestate)
             print('(Static evaluation for ' + ('white: ' if not self.gamestate.is_white_turn else 'black: ') + str(evaluation if self.gamestate.is_white_turn else -evaluation) + ')')
 
-        # Flip board if human vs human
-        if self.game_mode == 'human':
-            self.is_flipped = not self.is_flipped
-
         # Change move made variable
         self.move_made = not self.move_made
 
-        if self.gamestate.game_mode == 'human':
+        # Flip board if human vs human
+        if self.game_mode == 'human':
+            self.is_flipped = not self.is_flipped
             print(self.moves_list)
 
     def unmake_a_move(self):
@@ -280,9 +277,8 @@ class Gui:
 
         self.gamestate.unmake_move()
         self.latest_move.pop()
-        self.is_flipped = not self.is_flipped
-
-        if self.gamestate.game_mode == 'human':
+        if self.game_mode == 'human':
+            self.is_flipped = not self.is_flipped
             print(self.moves_list)
 
     def add_move_to_list(self, start_square, end_square):
@@ -303,12 +299,25 @@ class Gui:
         end_row, end_col = end_square // 10 - 2, end_square % 10 - 1
 
         # Check if last move was to take a piece
-        piece_taken = False
-        if self.gamestate.piece_captured != '--':
-            piece_taken = True
+        piece_taken = True if self.gamestate.piece_captured != '--' else False
 
         # The piece that is moving
         piece = self.gamestate.piece_moved[1]
+        letter = number = False
+        extra_info = ''
+
+        # If same type of piece can reach same square
+        if piece != 'p':
+            for move in self.gamestate.possible_moves:
+                if move[1] == end_square and piece == self.gamestate.board[move[0]][1]:
+                    if start_square // 10 in [move[0] // 10, move[1] // 10]:
+                        letter = True
+                    if start_square % 10 in [move[0] % 10, move[1] % 10]:
+                        number = True
+        if letter:
+            extra_info = str(s.fen_letters_ep[start_square % 10])
+        if number:
+            extra_info += str(s.square_to_row[start_square // 10])
 
         # Pawn
         if piece == 'p':
@@ -325,40 +334,37 @@ class Gui:
         # Other pieces
         else:
             if piece_taken:
-                text = piece + 'x' + s.letters[end_col] + s.numbers[7-end_row]
+                text = piece + extra_info + 'x' + s.letters[end_col] + s.numbers[7-end_row]
             else:
-                text = piece + s.letters[end_col] + s.numbers[7-end_row]
+                text = piece + extra_info + s.letters[end_col] + s.numbers[7-end_row]
 
             # Castling
-            if piece == 'K':
-                d = start_square - end_square
-                # Long castle
-                if d == 2:
-                    text = 'O-O-O'
-                # Short castle
-                elif d == -2:
-                    text = 'O-O'
+            if self.gamestate.move_log[-1][0][2] == 'ck':
+                text = 'O-O'
+            elif self.gamestate.move_log[-1][0][2] == 'cq':
+                text = 'O-O-O'
 
         # Check if the move resulted in a check
         self.gamestate.get_valid_moves()
         if self.gamestate.is_in_check:
             text += '+'
+        if self.gamestate.is_check_mate:
+            text += '#'
 
         return text
 
     def get_square_under_mouse(self):
         pos = pygame.mouse.get_pos()  # (x, y) location of click
-        # Get corresponding square
         col, row = ((pos[0] + s.sq_size) // s.sq_size, (pos[1] + 2 * s.sq_size) // s.sq_size) if not self.is_flipped \
-            else (9 - (pos[0] + s.sq_size) // s.sq_size, 11 - (pos[1] + 2 * s.sq_size) // s.sq_size)
+            else (9 - (pos[0] + s.sq_size) // s.sq_size, 11 - (pos[1] + 2 * s.sq_size) // s.sq_size)  # Get corresponding square in chess board
         square_under_mouse = row * 10 + col  # Get corresponding square on the 10x12 board
 
         return square_under_mouse
 
-    def chose_promotion(self, possible_move):
-        event, values = sg.Window('Pawn promotion', [[sg.Text('Promote to:')],
-                                                     [sg.Listbox(['Q', 'R', 'B', 'N'], size=(20, 4), key='LB')],
-                                                     [sg.Button('Ok'), sg.Button('Cancel')]]).read(close=True)
+    def chose_promotion_piece(self, possible_move):
+        event, values = sg.Window('', [[sg.Text('Promote to:')],
+                                       [sg.Listbox(['Q', 'R', 'B', 'N'], size=(20, 4), key='LB')],
+                                       [sg.Button('Ok'), sg.Button('Cancel')]]).read(close=True)
         if event == 'Ok':
             move_type = f'p{values["LB"][0][0]}'
             self.process_move((possible_move[0], possible_move[1], move_type))
@@ -382,10 +388,14 @@ class Gui:
                       [sg.Text('Play as:     '), sg.Radio('White', '2', default=True, size=(5, 1), key='white'), sg.Radio('Black', '2', key='black')],
                       [sg.Text('AI strength:'), sg.Radio('Strong', '3', default=True, size=(5, 1), key='strong'), sg.Radio('Medium', '3', key='medium'), sg.Radio('Easy', '3', key='easy')],
                       [sg.Text('')],
-                      [sg.Submit()]]
+                      [sg.Submit(pad=(10, 18))]]
 
         window = sg.Window('Please chose start settings', layout)
         event, values = window.read()
+        if event == sg.WIN_CLOSED:
+            self.game_mode = 'ai'
+            self.is_ai_white = False
+            self.max_search_depth = s.max_search_depth_strong
         if values['ai']:
             self.game_mode = 'ai'
         if values['human']:
@@ -407,6 +417,8 @@ class Gui:
             else:
                 window.close()
                 self.start_pop_up(True)
+        else:
+            self.is_white_turn = True
 
         window.close()
 
@@ -417,14 +429,12 @@ class Gui:
 
 def pop_up(title, message, question):
     if question:
-        layout = [[sg.Text(message)],
-                  [sg.Text('')],
-                  [sg.Button('Yes'), sg.Button('No')]]
-        window = sg.Window(title, layout, size=(300, 130))
+        layout = [[sg.Text(message, pad=(10, 10))],
+                  [sg.Button('Yes', pad=(10, 10)), sg.Button('No', pad=(10, 10))]]
+        window = sg.Window(title, layout, size=(350, 100))
         event, values = window.read()
         window.close()
         return event
-
     else:
         layout = [[sg.Text(message)],
                   [sg.Button('Ok')]]
@@ -436,20 +446,20 @@ def game_over_messages(checkmate, white_wins, stalemate_type):
 
     if checkmate:
         winner = 'white' if white_wins else 'black'
-        event = pop_up('Checkmate', f'Checkmate, {winner} won!\n\nDo you want to play again?', True)
+        event = pop_up('Checkmate', f'Checkmate, {winner} won! Do you want to play again?', True)
         if event == 'Yes':
             Gui().main()
         else:
             pygame.quit()
     else:
-        event = pop_up(stalemate_type, 'Game drawn!\n\nDo you want to play again?', True)
+        event = pop_up(stalemate_type, 'Game drawn! Do you want to play again?', True)
         if event == 'Yes':
             Gui().main()
         else:
             pygame.quit()
 
 # --------------------------------------------------------------------------------
-#                         Run main function
+#                         Run the game
 # --------------------------------------------------------------------------------
 
 
@@ -459,6 +469,7 @@ if __name__ == '__main__':
     myappid = u'_'
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
+    # If timing a game, run the cProfile module. Else run normally.
     if s.timing:
         pr = cProfile.Profile()
         pr.enable()
