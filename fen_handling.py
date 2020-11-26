@@ -2,6 +2,7 @@
 #           Creating FEN from a board, or extracts the board from a FEN
 # --------------------------------------------------------------------------------
 import settings as s
+import math
 
 
 def run_fen_to_board(fen):
@@ -126,22 +127,23 @@ def fen_to_board(fen):
     return board, castling_rights, ep_square, 0, is_white_turn
 
 
-def gamestate_to_fen(board):
+def gamestate_to_fen(gamestate):
 
     # Go through board to find where all the pieces are located
     fen = ''
     number = 0
     temp_number = 0
-    for square in board:
-        if square != 'FF':
-            if square == '--':
+    for square in gamestate.board:
+        piece = gamestate.board[square]
+        if piece != 'FF':
+            if piece == '--':
                 temp_number += 1
                 number += 1
             else:
                 if temp_number:
                     fen += str(temp_number)
                     temp_number = 0
-                fen += piece_to_fen[square]
+                fen += s.piece_to_fen[piece]
                 number += 1
             if number == 8:
                 if temp_number:
@@ -153,34 +155,30 @@ def gamestate_to_fen(board):
     fen = fen[:-1]
 
     # Turn to move
-    fen += ' w ' if is_white_turn else ' b '
+    fen += ' w ' if gamestate.is_white_turn else ' b '
 
     # Castling rights
-    if castling_rights[0]:
+    if gamestate.castling_rights[0]:
         fen += 'K'
-    if castling_rights[1]:
+    if gamestate.castling_rights[1]:
         fen += 'Q'
-    if castling_rights[2]:
+    if gamestate.castling_rights[2]:
         fen += 'k'
-    if castling_rights[3]:
+    if gamestate.castling_rights[3]:
         fen += 'q'
+    if not any(gamestate.castling_rights):
+        fen += '-'
 
     # Enpassant square
-    if not ep_square:
+    if not gamestate.enpassant_square:
         fen += ' -'
     else:
-        print(ep_square // 10, ep_square % 10)
-        fen += ' ' + s.fen_letters_ep[ep_square % 10] + s.fen_numbers_ep[ep_square // 10]
+        fen += ' ' + s.fen_letters_ep[gamestate.enpassant_square % 10] + s.fen_numbers_ep[gamestate.enpassant_square // 10]
                 
     # Halfmove clock
-    fen += ' ' + str(halfmove_clock)
+    fen += ' ' + str(int(gamestate.fifty_move_clock * 2))
 
     # Move counter
-    fen += ' ' + str(move_counter)
+    fen += ' ' + str(math.floor(gamestate.move_counter))
             
     return fen
-
-
-
-
-
