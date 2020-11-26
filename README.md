@@ -96,7 +96,7 @@ If you make changes to the code you can test that the legal move generator is wo
 
 1. A shorter version with some critical test positions including castling prevented king and queen side, promotion, promotion in/out of check, enpassant moves, discovered checks, double checks and more. The positions are found in test_positions_short.txt. The test takes around 3 minutes to run on a normal computer. 
 
-2. A complete test including around 6500 randomly selected test positions, found in test_positions_short.txt. The test takes around 24 hours to run on a normal computer.
+2. A complete test including around 6500 randomly selected test positions, found in test_positions_full.txt. The test takes around 24 hours to run on a normal computer.
 
 To change to the full test you simply change the test file variable at the top of perft.py to 'test_positions_full.txt' and run as normal.
 
