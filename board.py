@@ -4,7 +4,7 @@
 
 import settings as s
 import ai
-import fen_handling as f
+import fen_handling as fh
 
 import time
 import copy
@@ -18,15 +18,11 @@ class GameState:
 
         # Init the board and relevant variables from an input fen string
         self.start_fen = start_fen
-        self.board, self.castling_rights, self.enpassant_square, self.fifty_move_clock, self.is_white_turn = \
-            f.run_fen_to_board(self.start_fen)  # Initialize board to start position
+        self.board, self.castling_rights, self.enpassant_square, self.fifty_move_clock, self.is_white_turn = fh.run_fen_to_board(self.start_fen)
 
-        if self.enpassant_square:
-            self.enpassant_col = self.enpassant_square % 10 - 1
-        else:
-            self.enpassant_col = None  # Init what column is valid
+        self.enpassant_col = self.enpassant_square % 10 - 1 if self.enpassant_square else None
 
-        self.play_with_opening_book = False
+        self.play_with_opening_book = s.play_with_opening_book
         self.game_mode = game_mode
         self.is_ai_white = is_ai_white
         self.max_search_depth = max_search_depth
@@ -39,10 +35,10 @@ class GameState:
         self.piece_dict = [{'p': 0, 'N': 0, 'B': 0, 'R': 0, 'Q': 0, 'K': 0}, {'p': 0, 'N': 0, 'B': 0, 'R': 0, 'Q': 0, 'K': 0}]  # W, B
         self.init_piece_dict()
 
-        # Gamestate phase (opening, midgame or endgame?)
+        # Gamestate phase (midgame or endgame)
         self.midgame, self.endgame = 0, 0
         self.gamestate_phase = 0
-        self.init_gamestate()
+        self.init_gamestate_phase()
 
         # Piece values (base and square dependent)
         self.piece_values = [0, 0]
@@ -52,10 +48,13 @@ class GameState:
         self.white_king_location, self.black_king_location = 0, 0
         self.init_king_positions()
 
-        # King distance
-        self.update_king_distance()
+        # King distance and attack squares
+        self.kings_distance = 0
+        self.king_attack_squares = [[], []]
+        self.update_king_attack_squares_and_dist()
 
         # Get possible moves for a certain piece type
+        self.possible_moves = []
         self.move_functions = {'p': self.get_pawn_moves,
                                'N': self.get_knight_moves,
                                'B': self.get_bishop_moves,
@@ -64,7 +63,7 @@ class GameState:
                                'K': self.get_king_moves}
 
         self.white_wins = False
-        self.move_counter = 1
+        self.move_counter = 0.5
 
         self.pins, self.checks = [], []
         self.is_in_check = False
@@ -91,7 +90,7 @@ class GameState:
         # Checking 3 fold repetition and 50 move stalemate rules
         self.three_fold = {}
 
-        # Placeholder to be able to access move_log[-1]. [move, piece moved, piece_captured, castling rights, enpassant square, enpassant made, zobrist key, piece_values]
+        # Placeholder to be able to access move_log[-1]. [move, piece moved, piece_captured, castling rights, enpassant square, zobrist key, piece_values]
         self.move_log = [[(0, 0, 0), '--', '--', self.castling_rights[:], self.enpassant_square, False, self.zobrist_key, self.piece_values[:]]]
 
 # ---------------------------------------------------------------------------------------------------------
@@ -128,8 +127,10 @@ class GameState:
         # Update the king position
         if self.piece_moved == 'wK':
             self.white_king_location = end_square
+            self.update_king_attack_squares_and_dist()
         elif self.piece_moved == 'bK':
             self.black_king_location = end_square
+            self.update_king_attack_squares_and_dist()
 
         # Update pawn columns list
         if self.piece_moved[1] == 'p' and (start_square - end_square) % 10 > 0:
@@ -317,8 +318,10 @@ class GameState:
         # Update the king position and the has_castled attribute
         if piece_moved == 'wK':
             self.white_king_location = start_square
+            self.update_king_attack_squares_and_dist()
         elif piece_moved == 'bK':
             self.black_king_location = start_square
+            self.update_king_attack_squares_and_dist()
 
         # Update promotion move
         if move_type in ['pQ', 'pR', 'pB', 'pN']:
@@ -383,7 +386,7 @@ class GameState:
         self.fifty_move_clock = max(0, self.fifty_move_clock - 0.5)
 
 # ---------------------------------------------------------------------------------------------------------
-#                    Helper functions
+#                       Helper functions
 # ---------------------------------------------------------------------------------------------------------
 
     def update_castling_rights(self, end_square):
@@ -435,8 +438,16 @@ class GameState:
             if cnt == 2:
                 return True
 
+    def update_king_attack_squares_and_dist(self):
+        self.king_attack_squares[0] = s.king_attack_squares[self.white_king_location]
+        self.king_attack_squares[1] = s.king_attack_squares[self.black_king_location]
+
+        horizontal_distance = abs(self.white_king_location % 10 - self.black_king_location % 10)
+        vertical_distance = abs(self.white_king_location // 10 - self.black_king_location // 10)
+        self.kings_distance = horizontal_distance + vertical_distance
+
 # ---------------------------------------------------------------------------------------------------------
-#                                  Init functions
+#                                  Init and update functions
 # ---------------------------------------------------------------------------------------------------------
 
     def init_piece_values(self):
@@ -471,13 +482,13 @@ class GameState:
                 elif color == 'b':
                     self.pawn_columns_list[1].append(square % 10)
 
-    def init_gamestate(self):
+    def init_gamestate_phase(self):
         for square in self.board:
             if self.board[square] not in ['--', 'FF']:
-                piece_type, color = self.board[square][1], self.board[square][0]
-
+                piece_type = self.board[square][1]
                 self.gamestate_phase += s.piece_phase_calc[piece_type]
 
+        # Endgame is 100% when gamestate is below s.endgame_phase_limit, else interpolate between the two phases
         self.midgame = max(0, (self.gamestate_phase - s.endgame_phase_limit) / (24 - s.endgame_phase_limit))
         self.endgame = min(1, (24 - self.gamestate_phase) / (24 - s.endgame_phase_limit))
 
@@ -489,12 +500,6 @@ class GameState:
                     self.white_king_location = square
                 else:
                     self.black_king_location = square
-
-    def update_king_distance(self):
-
-
-        s.king_distance_table = 2
-        pass
 
     def init_zobrist(self):
         zobrist_key = 0
@@ -529,10 +534,10 @@ class GameState:
         return zobrist_key
 
 # ---------------------------------------------------------------------------------------------------------
-#                      Valid moves, pins/checks, and all possible moves
+#                              Get valid moves
 # ---------------------------------------------------------------------------------------------------------
 
-    # Get all moves considering checks
+    # Get all moves considering checks and pins
     def get_valid_moves(self):
 
         king_pos = self.white_king_location if self.is_white_turn else self.black_king_location
@@ -573,6 +578,8 @@ class GameState:
             else:
                 self.is_stale_mate = True
                 self.kind_of_stalemate = 'Stalemate'
+
+        self.possible_moves = moves
 
         return moves
 
@@ -707,8 +714,10 @@ class GameState:
 
                 # Check if the move would result in check
                 self.board[square], self.board[square - 1] = '--', '--'
+                self.board[self.enpassant_square] = f'{friendly_color}p'
                 is_check = self.check_for_checks(king_pos)
                 self.board[square], self.board[square - 1] = f'{friendly_color}p', f'{enemy_color}p'
+                self.board[self.enpassant_square] = '--'
 
                 if not is_check:
                     moves.append((square, square + move_dir - 1, 'ep'))
@@ -729,8 +738,10 @@ class GameState:
 
                 # Check if the move would result in check
                 self.board[square], self.board[square + 1] = '--', '--'
+                self.board[self.enpassant_square] = f'{friendly_color}p'
                 is_check = self.check_for_checks(king_pos)
                 self.board[square], self.board[square + 1] = f'{friendly_color}p', f'{enemy_color}p'
+                self.board[self.enpassant_square] = '--'
 
                 if not is_check:
                     moves.append((square, square + move_dir + 1, 'ep'))
