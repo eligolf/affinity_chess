@@ -1,5 +1,3 @@
-import gui
-import PySimpleGUI as sg
 import contextlib
 with contextlib.redirect_stdout(None):
     import pygame
@@ -9,24 +7,17 @@ with contextlib.redirect_stdout(None):
 #  --------------------------------------------------------------------------------
 
 # Negamax parameters for iterative deepening
-max_search_time = 5  # When it reaches more than x seconds for a move it makes a last search
+max_search_time = 3  # When it reaches more than x seconds for a move it makes a last search
 min_search_depth = 6  # Choose to always search for at least a certain number of depth
 max_search_depth_strong = 60
 max_search_depth_medium = 4
 max_search_depth_easy = 2
 
 # Set to True to enable opening book
-play_with_opening_book = False
+play_with_opening_book = True
 
 # Set to True if you want to see static evaluation for current position
 static_evaluation = False
-
-# Level of AI.
-# 0 = Random move
-# 1 = Looks 1 half move ahead
-# 2 = TBD
-# 3 = Negamax with alpha beta pruning
-level = 3
 
 # Default start position if no value is set in start pop up window
 start_fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
@@ -36,9 +27,6 @@ timing = False
 timing_sort = 'tottime'  # Chose what to sort timing on. See options here: https://blog.alookanalytics.com/2017/03/21/python-profiling-basics/
 
 # Sounds
-sound_piece_moved = 'sounds/chess_on_wood.wav'
-sound_move = 'sounds/move.mp3'
-sound_capture = 'sounds/capture.mp3'
 toggle_sound = True  # Set to False to disable sound
 
 #  --------------------------------------------------------------------------------
@@ -72,17 +60,17 @@ fen_to_piece = {'p': 'bp',
                 'K': 'wK'}
 
 # For enpassant square conversion
-fen_letters_ep = {'1': 'a',
-                  '2': 'b',
-                  '3': 'c',
-                  '4': 'd',
-                  '5': 'e',
-                  '6': 'f',
-                  '7': 'g',
-                  '8': 'h'}
+fen_letters_ep = {1: 'a',
+                  2: 'b',
+                  3: 'c',
+                  4: 'd',
+                  5: 'e',
+                  6: 'f',
+                  7: 'g',
+                  8: 'h'}
 
-fen_numbers_ep = {'7': '3',
-                  '4': '6'}
+fen_numbers_ep = {7: '3',
+                  4: '6'}
 
 # Board pieces to FEN representation
 piece_to_fen = {'bp': 'p',
@@ -98,6 +86,24 @@ piece_to_fen = {'bp': 'p',
                 'wQ': 'Q',
                 'wK': 'K'}
 
+# Get a move like e2e4 and convert to (from_square, to_square)
+convert_textual = {'8': 20,
+                   '7': 30,
+                   '6': 40,
+                   '5': 50,
+                   '4': 60,
+                   '3': 70,
+                   '2': 80,
+                   '1': 90}
+
+square_to_row = {2: 8,
+                 3: 7,
+                 4: 6,
+                 5: 5,
+                 6: 4,
+                 7: 3,
+                 8: 2,
+                 9: 1}
 
 #  --------------------------------------------------------------------------------
 #                                Gui parameters
@@ -174,26 +180,19 @@ numbers = ['1', '2', '3', '4', '5', '6', '7', '8']
 letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
 capital_letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 
-# Start up window
-sg.theme('DarkAmber')
-start_up = [[sg.Text('')],
-            [sg.Text('Start FEN (Optional): ', size=(15, 1)), sg.InputText(size=(60, 1), key='fen')],
-            [sg.Text('')],
-            [sg.Text('Opponent:  '), sg.Radio('AI', '1', default=True, size=(5, 1), key='ai'), sg.Radio('Human', '1', size=(5, 1), key='human')],
-            [sg.Text('Play as:     '), sg.Radio('White', '2', default=True, size=(5, 1), key='white'), sg.Radio('Black', '2', key='black')],
-            [sg.Text('AI strength:'), sg.Radio('Strong', '3', default=True, size=(5, 1), key='strong'), sg.Radio('Medium', '3', key='medium'), sg.Radio('Easy', '3', key='easy')],
-            [sg.Text('')],
-            [sg.Submit()]]
-
-wrong_fen_start_up = [[sg.Text('')],
-                      [sg.Text('Start FEN (Optional): ', size=(15, 1)), sg.InputText(size=(60, 1), key='fen')],
-                      [sg.Text('Please enter a valid FEN, or leave empty for start position.', text_color='red')],
-                      [sg.Text('')],
-                      [sg.Text('Opponent:  '), sg.Radio('AI', '1', default=True, size=(5, 1), key='ai'), sg.Radio('Human', '1', size=(5, 1), key='human')],
-                      [sg.Text('Play as:     '), sg.Radio('White', '2', default=True, size=(5, 1), key='white'), sg.Radio('Black', '2', key='black')],
-                      [sg.Text('AI strength:'), sg.Radio('Strong', '3', default=True, size=(5, 1), key='strong'), sg.Radio('Medium', '3', key='medium'), sg.Radio('Easy', '3', key='easy')],
-                      [sg.Text('')],
-                      [sg.Submit()]]
+# Board used for start-up drawing of the board
+start_board = {0: 'FF',   1: 'FF',   2: 'FF',   3: 'FF',   4: 'FF',   5: 'FF',   6: 'FF',   7: 'FF',   8: 'FF',   9: 'FF',   # [  0,   1,   2,   3,   4,   5,   6,   7,   8,   9]
+              10: 'FF',  11: 'FF',  12: 'FF',  13: 'FF',  14: 'FF',  15: 'FF',  16: 'FF',  17: 'FF',  18: 'FF',  19: 'FF',   # [ 10,  11,  12,  13,  14,  15,  16,  17,  18,  19]
+              20: 'FF',  21: 'bR',  22: 'bN',  23: 'bB',  24: 'bQ',  25: 'bK',  26: 'bB',  27: 'bN',  28: 'bR',  29: 'FF',   # [ 20,  21,  22,  23,  24,  25,  26,  27,  28,  29]
+              30: 'FF',  31: 'bp',  32: 'bp',  33: 'bp',  34: 'bp',  35: 'bp',  36: 'bp',  37: 'bp',  38: 'bp',  39: 'FF',   # [ 30,  31,  32,  33,  34,  35,  36,  37,  38,  39]
+              40: 'FF',  41: '--',  42: '--',  43: '--',  44: '--',  45: '--',  46: '--',  47: '--',  48: '--',  49: 'FF',   # [ 40,  41,  42,  43,  44,  45,  46,  47,  48,  49]
+              50: 'FF',  51: '--',  52: '--',  53: '--',  54: '--',  55: '--',  56: '--',  57: '--',  58: '--',  59: 'FF',   # [ 50,  51,  52,  53,  54,  55,  56,  57,  58,  59]
+              60: 'FF',  61: '--',  62: '--',  63: '--',  64: '--',  65: '--',  66: '--',  67: '--',  68: '--',  69: 'FF',   # [ 60,  61,  62,  63,  64,  65,  66,  67,  68,  69]
+              70: 'FF',  71: '--',  72: '--',  73: '--',  74: '--',  75: '--',  76: '--',  77: '--',  78: '--',  79: 'FF',   # [ 70,  71,  72,  73,  74,  75,  76,  77,  78,  79]
+              80: 'FF',  81: 'wp',  82: 'wp',  83: 'wp',  84: 'wp',  85: 'wp',  86: 'wp',  87: 'wp',  88: 'wp',  89: 'FF',   # [ 80,  81,  82,  83,  84,  85,  86,  87,  88,  89]
+              90: 'FF',  91: 'wR',  92: 'wN',  93: 'wB',  94: 'wQ',  95: 'wK',  96: 'wB',  97: 'wN',  98: 'wR',  99: 'FF',   # [ 90,  91,  92,  93,  94,  95,  96,  97,  98,  99]
+             100: 'FF', 101: 'FF', 102: 'FF', 103: 'FF', 104: 'FF', 105: 'FF', 106: 'FF', 107: 'FF', 108: 'FF', 109: 'FF',   # [100, 101, 102, 103, 104, 105, 106, 107, 108, 109]
+             110: 'FF', 111: 'FF', 112: 'FF', 113: 'FF', 114: 'FF', 115: 'FF', 116: 'FF', 117: 'FF', 118: 'FF', 119: 'FF'}   # [110, 111, 112, 113, 114, 115, 116, 117, 118, 119]
 
 
 #  --------------------------------------------------------------------------------
@@ -202,17 +201,7 @@ wrong_fen_start_up = [[sg.Text('')],
 
 mvv_storing = 10  # How many of the MVV_LVV top candidates to use
 no_of_killer_moves = 2  # Number of killer moves stored per depth
-R = 2  # Used in nullmove logic
 
-# Level of evaluation function
-# 0 = Simple evaluation just to get piece values and placement of pieces
-# 1 = Just one piece table for entire game with added bonus for bishop pair and castling
-# 2 = Main best evaluation function
-evaluation_function = 2
-eval_divisions = {0: 100,
-                  1: 100,
-                  2: 100}
-eval_level = eval_divisions[evaluation_function]
 
 # Piece base values
 piece_value_base_mid_game = {'K': 60000,
@@ -281,7 +270,7 @@ king_mid = [0,   0,   0,   0,   0,   0,   0,   0,   0, 0,
             0, -20, -30, -30, -40, -40, -30, -30, -20, 0,
             0, -10, -20, -20, -20, -20, -20, -20, -10, 0,
             0,  20,  20,   0,   0,   0,   0,  20,  20, 0,
-            0,  20,  30,   0,   0,   0,   0,  30,  20, 0,
+            0,  20,  40,   0,   0,   0,   0,  40,  20, 0,
             0,   0,   0,   0,   0,   0,   0,   0,   0, 0,
             0,   0,   0,   0,   0,   0,   0,   0,   0, 0]
 queen_mid = [0,   0,   0,   0,  0,  0,   0,   0,   0, 0,
@@ -336,8 +325,8 @@ pawn_mid = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 50, 50, 50, 50, 50, 50, 50, 50, 0,
-            0, 10, 10, 20, 30, 30, 20, 10, 10, 0,
-            0, 5, 5, 10, 25, 25, 10, 5, 5, 0,
+            0, 20, 20, 20, 30, 30, 20, 20, 20, 0,
+            0, 10, 10, 10, 25, 25, 10, 10, 10, 0,
             0, 0, 0, 0, 20, 20, 0, 0, 0, 0,
             0, 5, -5, -10, 0, 0, -10, -5, 5, 0,
             0, 5, 10, 10, -20, -20, 10, 10, 5, 0,
@@ -347,14 +336,14 @@ pawn_mid = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 king_end = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, -50, -40, -30, -20, -20, -30, -40, -50, 0,
-            0, -30, -20, -10, 0, 0, -10, -20, -30, 0,
-            0, -30, -10, 20, 30, 30, 20, -10, -30, 0,
-            0, -30, -10, 30, 40, 40, 30, -10, -30, 0,
-            0, -30, -10, 30, 40, 40, 30, -10, -30, 0,
-            0, -30, -10, 20, 30, 30, 20, -10, -30, 0,
-            0, -30, -30, 0, 0, 0, 0, -30, -30, 0,
-            0, -50, -30, -30, -30, -30, -30, -30, -50, 0,
+            0, -70, -53, -52, -51, -51, -52, -53, -70, 0,
+            0, -53, -20, -10, 0, 0, -10, -20, -53, 0,
+            0, -52, -10, 20, 30, 30, 20, -10, -52, 0,
+            0, -51, -10, 30, 40, 40, 30, -10, -51, 0,
+            0, -51, -10, 30,  40, 40, 30, -10, -51, 0,
+            0, -52, -10,  20,  30,  30,  20, -10, -52, 0,
+            0, -53, -30, -20, -20, -20,  -20, -30, -53, 0,
+            0, -70, -53, -52, -51, -51, -52, -53, -70, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 queen_end = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -433,7 +422,6 @@ piece_value_end_game = {'K': king_end,
 
 # Extra bonus/punishment
 bishop_pair_bonus = 15
-castling_bonus = 20
 mobility_factor = 5
 
 double_pawn_punishment = -30  # Give punishment if there are 2 pawns on the same column, maybe increase if late in game. Calibrate value
@@ -463,3 +451,17 @@ blocking_d_e_pawn_punishment = -40  # Punishment for blocking unmoved pawns on d
 
 # Mobility per piece, e.g. give larger punishment if queen is less mobile. And difference punishment depending on state of game.
 # Move same piece twice in opening punishment.
+
+
+#  --------------------------------------------------------------------------------
+#                    Pre-calculated tables to speed up game
+#  --------------------------------------------------------------------------------
+king_attack_squares = {}
+for square in real_board_squares:
+    king_attack_squares[square] = []
+
+for square in real_board_squares:
+    for d in directions:
+        attack_square = square + d
+        if attack_square in real_board_squares:
+            king_attack_squares[square].append(attack_square)
