@@ -707,8 +707,10 @@ class GameState:
 
                 # Check if the move would result in check
                 self.board[square], self.board[square - 1] = '--', '--'
+                self.board[square + move_dir - 1] = f'{friendly_color}p'
                 is_check = self.check_for_checks(king_pos)
                 self.board[square], self.board[square - 1] = f'{friendly_color}p', f'{enemy_color}p'
+                self.board[square + move_dir - 1] = '--'
 
                 if not is_check:
                     moves.append((square, square + move_dir - 1, 'ep'))
@@ -729,8 +731,10 @@ class GameState:
 
                 # Check if the move would result in check
                 self.board[square], self.board[square + 1] = '--', '--'
+                self.board[square + move_dir + 1] = f'{friendly_color}p'
                 is_check = self.check_for_checks(king_pos)
                 self.board[square], self.board[square + 1] = f'{friendly_color}p', f'{enemy_color}p'
+                self.board[square + move_dir + 1] = '--'
 
                 if not is_check:
                     moves.append((square, square + move_dir + 1, 'ep'))
