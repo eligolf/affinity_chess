@@ -3,23 +3,8 @@
 #  --------------------------------------------------------------------------------
 import settings as s
 
-import random
 
-
-def evaluate(gamestate, depth=100):
-    levels = {0: evaluate_simple,
-              1: evaluate_1,
-              2: evaluate_2}
-
-    return levels[s.evaluation_function](gamestate, depth)
-
-
-#  --------------------------------------------------------------------------------
-#          Level 2: Normal eval with interpolation between opening and end game
-#  --------------------------------------------------------------------------------
-
-
-def evaluate_2(gamestate, depth):
+def evaluate(gamestate, depth):
 
     # Initialize scores and other parameters
     white_score = black_score = 0
@@ -60,12 +45,6 @@ def evaluate_2(gamestate, depth):
             if rook not in white_pawns:
                 black_score += s.rook_on_open_file_bonus
 
-    # Castling bonus
-    if gamestate.white_has_castled:
-        white_score += s.castling_bonus
-    if gamestate.black_has_castled:
-        black_score += s.castling_bonus
-
     # Opening dependent bonuses/punishment
     if len(gamestate.move_log) < 30:
 
@@ -78,6 +57,8 @@ def evaluate_2(gamestate, depth):
             black_score += s.blocking_d_e_pawn_punishment
         if gamestate.board[34] == 'bp' and gamestate.board[44] != '--':
             black_score += s.blocking_d_e_pawn_punishment
+
+    # Bonus for attacking squares around the enemy king
 
     # Endgame related functions
     if gamestate.endgame == 1:
@@ -97,91 +78,10 @@ def evaluate_2(gamestate, depth):
             # White advantage
             if gamestate.piece_dict[1]['R'] == 0 and gamestate.piece_dict[1]['Q'] == 0:
                 if gamestate.piece_dict[0]['R'] >= 1 or gamestate.piece_dict[0]['Q'] >= 1:
-                    pass
-
-    return black_score - white_score
-
-
-#  --------------------------------------------------------------------------------
-#          Level 1: Normal eval with just one piece table for entire game
-#  --------------------------------------------------------------------------------
-
-def evaluate_1(gamestate, depth):
-
-    # Initialize scores and other parameters
-    white_score = black_score = 0
-    white_bishops = black_bishops = 0
-
-    # If check mate return large value, if draw return 0.
-    if gamestate.is_check_mate:
-        return 1e9 + depth if gamestate.is_white_turn else -1e9 - depth
-    if gamestate.is_stale_mate:
-        return 0
-
-    # Check all squares on board
-    for square in gamestate.board:
-        if gamestate.board[square][0] in 'wb':
-            piece_color, piece_type = gamestate.board[square][0], gamestate.board[square][1]
-
-            if piece_color == 'w':
-                # Calculate to see if there are 2 bishops on the board
-                if piece_type == 'B':
-                    white_bishops += 1
-
-                white_score += s.piece_value_base_mid_game[piece_type] + s.piece_value_mid_game[piece_type][square]
-
-            elif piece_color == 'b':
-                # If black pieces, flip piece tables to look from black side
-                square_flipped = 120 - square + s.flip_board[square % 10]
-
-                # Calculate to see if there are 2 bishops on the board
-                if piece_type == 'B':
-                    black_bishops += 1
-
-                black_score += s.piece_value_base_mid_game[piece_type] + s.piece_value_mid_game[piece_type][square_flipped]
-
-    # Give bonus for bishop pair
-    if white_bishops > 1:
-        white_score += s.bishop_pair_bonus
-    if black_bishops > 1:
-        black_score += s.bishop_pair_bonus
-
-    # Mobility bonus
-    black_score += gamestate.black_mobility * s.mobility_factor
-    white_score += gamestate.white_mobility * s.mobility_factor
-
-    # Castling bonus
-    if len(gamestate.move_log) < 30:
-        if gamestate.white_has_castled:
-            white_score += s.castling_bonus
-        if gamestate.black_has_castled:
-            black_score += s.castling_bonus
-
-    return black_score - white_score
-
-
-#  --------------------------------------------------------------------------------
-#        Level 0: Simple evaluation just to get piece values, based on location
-#  --------------------------------------------------------------------------------
-
-def evaluate_simple(gamestate, depth):
-    white_score = black_score = 0
-
-    # If check mate return large value, if draw return 0.
-    if gamestate.is_check_mate:
-        return 1e9 + depth if gamestate.is_white_turn else -1e9 - depth
-    if gamestate.is_stale_mate:
-        return 0
-
-    for square in gamestate.board:
-        if gamestate.board[square][0] in 'wb':
-            piece_color, piece_type = gamestate.board[square][0], gamestate.board[square][1]
-
-            if piece_color == 'w':
-                white_score += s.piece_value_base_mid_game[piece_type] + s.piece_value_mid_game[piece_type][square]
-            elif piece_color == 'b':
-                # If black pieces, flip piece tables to look from black side
-                square_flipped = 120 - square + s.flip_board[square % 10]
-                black_score += s.piece_value_base_mid_game[piece_type] + s.piece_value_mid_game[piece_type][square_flipped]
+                    white_score += (14 - gamestate.kings_distance) * 4
+            # Black advantage
+            elif gamestate.piece_dict[0]['R'] == 0 and gamestate.piece_dict[0]['Q'] == 0:
+                if gamestate.piece_dict[1]['R'] >= 1 or gamestate.piece_dict[1]['Q'] >= 1:
+                    black_score += (14 - gamestate.kings_distance) * 4
 
     return black_score - white_score
