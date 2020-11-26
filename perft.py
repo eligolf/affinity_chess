@@ -1,69 +1,68 @@
-#  --------------------------------------------------------------------------------
+#  --------------------------------------------------------------------------------------------------
 #                                Perft testing
-#  --------------------------------------------------------------------------------
+#
+#  Test some critical test cases with test_file 'test_positions_short.txt'.
+#  This runs in about 5 minutes.
+#
+#  For a full run of around 6500 random positions, change test_file to 'test_positions_full.txt'
+#  This runs in about 24 hours.
+#
+#  Any failed test case(s) will be printed to 'failed_tests.csv' in the root directory.
+#  ---------------------------------------------------------------------------------------------------
 
 import settings as s
 import board as b
 
 import pandas as pd
-import xlsxwriter as xlsw
 import csv
+
+test_file = 'test_positions_short.txt'
 
 
 class Perft:
 
     def __init__(self):
-        self.node_counter = -1
-        self.nodes = {}
 
-        self.check_mate_counter = 0
-        self.checkmates = {}
-
-        self.stalemate_counter = 0
-        self.stalemates = {}
-
-        self.promotion_counter = 0
-        self.promotions = {}
-
-        self.is_check_counter = 0
-        self.checks = {}
-
-        self.capture_counter = 0
-        self.captures = {}
+        self.test_failed = False
 
         self.columns = ['Test case', 'Depth', 'Nodes searched', 'Real answer']
-        self.df = pd.DataFrame([[0, 0, 0, 0]], columns=self.columns)
+        self.df = pd.DataFrame(columns=self.columns)
 
     def run_perft(self):
 
-        for test_case in test_positions:
+        for j, test_case in enumerate(test_positions):
 
             answers = test_case.split()[-1].split(',')[1:]
             fen = ' '.join([test_case.split()[0], test_case.split()[1], test_case.split()[2], test_case.split()[3].split(',')[0]])
-
-            self.nodes = {}
 
             gamestate = b.GameState(fen, 'ai', False, 0)
 
             gamestate.is_white_turn = True if 'w' in fen else False
 
-            # Run perft test with iterative deepening
-            for i in range(1, len(answers) + 1):
-                if int(answers[i-1]) <= 1e7:
-                    nodes = self.perft(gamestate, i)
+            # Run perft test with iterative deepening to test all depths
+            for i in range(0, len(answers)):
+                if int(answers[i]) <= 1e7:
 
-                    self.nodes[i] = nodes
-                    self.node_counter = -1
+                    nodes = self.perft(gamestate, i+1)
 
-                    if int(answers[i-1]) != int(nodes) and answers[i-1] != '0':
-                        new_df = pd.DataFrame([[test_case, i-1, list(self.nodes.values())[-1], answers[i-1]]], columns=self.columns)
+                    if int(answers[i]) != int(nodes) and answers[i] != '0':
+                        new_df = pd.DataFrame([[test_case, i, nodes, answers[i]]], columns=self.columns)
                         self.df = pd.concat([self.df, new_df])
-                        self.df.to_csv('faulty_positions.csv', index=False)
+                        self.df.to_csv('failed_tests.csv', index=False)
+                        self.test_failed = True
+                        print('---------------------------')
+                        print('Test failed:')
+                        print(test_case)
+                        print('Nodes searched:', nodes)
+                        print('Answer:', answers[i])
+                        print('---------------------------')
 
-            print(test_case)
-            self.node_counter = -1
+            print(f'{j+1}/{len(test_positions)} tests performed.')
 
-        self.df.to_csv('faulty_positions.csv', index=False)
+        if self.test_failed:
+            print('Perft failed, see "failed_tests.csv" for more information about the failed test cases.')
+        else:
+            print('Perft completed successfully.')
 
     def perft(self, gamestate, depth):
 
@@ -85,8 +84,11 @@ class Perft:
         return tot
 
 
-# Run perft tests
-tests = "test_positions.txt"
+#  --------------------------------------------------------------------------------
+#                             Run perft tests
+#  --------------------------------------------------------------------------------
+
+tests = test_file
 temp = open(tests, "r")
 test_positions = temp.readlines()
 Perft().run_perft()
