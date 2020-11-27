@@ -13,7 +13,7 @@ import math
 
 class Ai:
 
-    def __init__(self):
+    def __init__(self, min_search_depth=s.min_search_depth):
 
         # Transposition table init
         self.tt_entry = {'value': 0, 'flag': '', 'depth': 0, 'best move': None, 'valid moves': []}
@@ -35,6 +35,7 @@ class Ai:
 
         # To what depth it searched
         self.max_depth = 0
+        self.min_search_depth = min_search_depth
 
     def ai_make_move(self, gamestate):
 
@@ -83,7 +84,7 @@ class Ai:
                 self.counter = -1
 
                 # Break if time has run out, if reached at least min depth, or if finding a mate in lowest number of moves
-                if (self.timer > s.max_search_time and depth >= s.min_search_depth) or (evaluation / 100) > 100:
+                if (self.timer > s.max_search_time and depth >= self.min_search_depth) or (evaluation / 100) > 100:
                     self.max_depth = depth
                     break
             self.max_depth = depth
