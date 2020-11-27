@@ -35,7 +35,7 @@ class Performance:
 
     def __init__(self):
 
-        self.columns = ['Test case', 'Depth', 'Number of runs', 'Average time']
+        self.columns = ['Test case', 'Depth', 'Time per run', 'Average time']
         self.df = pd.DataFrame(columns=self.columns)
 
     def run_test(self):
@@ -53,6 +53,7 @@ class Performance:
             gamestate.is_white_turn = white_turn
 
             timing = 0
+            time_per_run = []
             for run in range(runs_per_game):
                 time_start = time.time()
 
@@ -60,15 +61,16 @@ class Performance:
                 current_ai.ai_make_move(gamestate)
 
                 timing += time.time() - time_start
+                time_per_run.append(round(time.time() - time_start, 2))
 
             # Calculate the average time fo the runs and print it to the larger data frame
             average_time = round(timing/runs_per_game, 2)
-            new_df = pd.DataFrame([[test_case, depth, runs_per_game, average_time]], columns=self.columns)
+            new_df = pd.DataFrame([[test_case, depth, time_per_run, average_time]], columns=self.columns)
             self.df = pd.concat([self.df, new_df])
 
         # Add a last row with the complete average time
         total_average = self.df['Average time'].mean()
-        new_df = pd.DataFrame([['Complete average time', '-', '-', total_average]], columns=self.columns)
+        new_df = pd.DataFrame([['Complete average time', 'N/A', 'N/A', total_average]], columns=self.columns)
         self.df = pd.concat([self.df, new_df])
 
         # Create a test result file from the complete self.df
