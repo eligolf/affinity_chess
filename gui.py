@@ -346,7 +346,11 @@ class Gui:
         self.move_made = not self.move_made
 
     def unmake_a_move(self):
-        if len(self.gamestate.move_log) > 1:
+
+        # Can't redo engines first move
+        moves_made = 2 if self.is_ai_white else 1
+
+        if len(self.gamestate.move_log) > moves_made:
 
             # Unmake twice if playing against the AI
             undo_move = 1 if self.game_mode == 'human' else 2

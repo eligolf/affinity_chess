@@ -1,4 +1,4 @@
-#  --------------------------------------------------------------------------------------------------
+#  -----------------------------------------------------------------------------------------------------------
 #                                Engine speed test
 #
 #  The purpose of this test run is to test the engine performance. It runs some test cases
@@ -14,9 +14,9 @@
 #  2 endgame positions
 #  2 late endgame positions
 #
-#  The results are saved to 'test_timings_{today's date_time}.csv' in '/test_positions/timing'.
+#  The results are saved to 'test_timings_{today's date_time}.csv' in the folder '/test_positions/timing'.
 #
-#  ---------------------------------------------------------------------------------------------------
+#  -------------------------------------------------------------------------------------------------------------
 
 import gamestate as gs
 import ai

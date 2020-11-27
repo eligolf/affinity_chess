@@ -7,7 +7,7 @@ with contextlib.redirect_stdout(None):
 #  --------------------------------------------------------------------------------
 
 # Set window size, all based on the board square size (between 40 and 100)
-sq_size = 70
+sq_size = 80
 
 # Negamax parameters for iterative deepening
 max_search_time = 3  # When it reaches more than x seconds for a move it makes a last search
@@ -21,7 +21,7 @@ level = {max_search_depth_strong: 'Strong',
          max_search_depth_easy: 'Easy'}
 
 # Set to True to enable opening book. Set maximum opening moves to use before start calculating.
-play_with_opening_book = True
+play_with_opening_book = False
 max_opening_moves = 7
 
 # Set to True if you want to see static evaluation for current position
@@ -447,11 +447,11 @@ pawn_end = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 50, 50, 50, 50, 50, 50, 50, 50, 0,
-            0, 10, 10, 20, 30, 30, 20, 10, 10, 0,
-            0, 5, 5, 10, 25, 25, 10, 5, 5, 0,
-            0, 0, 0, 0, 20, 20, 0, 0, 0, 0,
-            0, 5, -5, -10, 0, 0, -10, -5, 5, 0,
-            0, 5, 10, 10, -20, -20, 10, 10, 5, 0,
+            0, 30, 30, 30, 30, 30, 30, 30, 30, 0,
+            0, 10, 10, 10, 10, 10, 10, 10, 10, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, -10, -10, -10, -10, -10, -10, -10, -10, 0,
+            0, -20, -20, -20, -20, -20, -20, -20, -20, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
