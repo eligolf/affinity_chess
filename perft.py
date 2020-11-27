@@ -58,10 +58,7 @@ class Perft:
 
             print(f'{j+1}/{len(test_positions)} tests performed.')
 
-        if self.test_failed:
-            print('Perft failed, see "failed_tests.csv" for more information about the failed test cases.')
-        else:
-            print('Perft completed successfully.')
+        print('Perft failed, see "failed_tests.csv" for more information about the failed test cases.') if self.test_failed else print('Perft completed successfully.')
 
     def perft(self, gamestate, depth):
 
