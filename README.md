@@ -88,7 +88,9 @@ Future implementation ideas:
 - [ ] Mobility
 - [ ] Endgame related logic, especially for the king
 
-# Testing/perft
+# Tests
+
+### Perft
 If you make changes to the code you can test that the legal move generator is working properly through perft.py. You have two options to chose from: 
 
 1. A shorter version with some critical test positions including castling prevented king and queen side, promotion, promotion in/out of check, enpassant moves, discovered checks, double checks and more. The positions are found in test_positions_short.txt. The test takes around 3 minutes to run on a normal computer. 
@@ -97,6 +99,17 @@ If you make changes to the code you can test that the legal move generator is wo
 
 To change to the full test you simply change the test_file variable at the top of perft.py to 'full' and run as normal.
 
+### Engine speed/performance
+In the file engine_speed_test.py you can run some test cases for a number of times and calculates the average time per test case. The function also calculates the the average time for the complete test run. The purpose is to measure if changes in the code lead to improvements in calculation speed.
+
+All positions in the file 'engine_performance.txt' in the folder test_positions are tested. In the default file there are 8 test cases:
+
+ - 2 opening positions
+ - 2 midgame positions
+ - 2 endgame positions
+ - 2 late endgame positions
+
+The results are saved to 'test_timings_{today's date_time}.csv' in the folder '/test_positions/timing'.
 
 
 
