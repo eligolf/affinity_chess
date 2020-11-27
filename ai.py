@@ -3,7 +3,7 @@
 #  --------------------------------------------------------------------------------
 
 import settings as s
-from board import *
+from gamestate import *
 import evaluation as e
 import opening_move as om
 
@@ -33,6 +33,9 @@ class Ai:
         # Used in the iterative deepening loop to stop after a certain time has passed
         self.timer = 0
 
+        # To what depth it searched
+        self.max_depth = 0
+
     def ai_make_move(self, gamestate):
 
         # Init variables
@@ -52,7 +55,7 @@ class Ai:
         if self.is_in_opening:
             move = om.make_opening_move(gamestate)
             evaluation = 0
-            if not move:
+            if not move or gamestate.move_counter >= 0.5 + s.max_opening_moves:
                 self.is_in_opening = False
 
         # Negamax with iterative deepening if not in opening
@@ -81,7 +84,10 @@ class Ai:
 
                 # Break if time has run out, if reached at least min depth, or if finding a mate in lowest number of moves
                 if (self.timer > s.max_search_time and depth >= s.min_search_depth) or (evaluation / 100) > 100:
+                    self.max_depth = depth
                     break
+            self.max_depth = depth
+            print('----------------------------------')
 
             # Always return moves from an even number of depth, helps in some situation since quiescence search is not implemented
             if len(self.best_moves) % 2 == 0:
@@ -90,6 +96,7 @@ class Ai:
             else:
                 move = self.best_moves[-2][0]
                 evaluation = self.best_moves[-2][1]
+                self.max_depth -= 1
 
         return move, evaluation
 
