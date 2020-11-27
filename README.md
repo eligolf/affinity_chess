@@ -95,7 +95,7 @@ If you make changes to the code you can test that the legal move generator is wo
 
 2. A complete test including around 6500 randomly selected test positions, found in test_positions_full.txt. The test takes around 24 hours to run on a normal computer.
 
-To change to the full test you simply change the test file variable at the top of perft.py to 'test_positions_full.txt' and run as normal.
+To change to the full test you simply change the test_file variable at the top of perft.py to 'full' and run as normal.
 
 
 
