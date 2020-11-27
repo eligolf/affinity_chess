@@ -20,8 +20,7 @@ def make_opening_move(gamestate):
             if ext in '.bin':
                 with chess.polyglot.open_reader(os.path.join(subdir, file)) as reader:
                     for i, entry in enumerate(reader.find_all(board)):
-                        if entry.move not in moves:
-                            moves.append(entry.move)
+                        moves.append(entry.move)
 
                         # Only pick from the most common openings
                         if i == 4:
