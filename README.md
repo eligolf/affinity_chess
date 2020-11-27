@@ -21,7 +21,7 @@ Playing Affinity Chess is very simple. You can run the command "python gui.py" i
 
 You move a piece by dragging and dropping it in the GUI with your mouse. When you grab a piece, all legal squares for that piece will light up, shown in the image above.
 
-Useful commands:
+Useful keyboard shortcuts:
 - **z-key**: Undo the latest move.
 - **r-key**: Restart the game.
 - **f-key**: Flip the board.
