@@ -17,7 +17,6 @@ import copy
 import time
 import random
 import pandas as pd
-from playsound import playsound
 import contextlib
 with contextlib.redirect_stdout(None):
     import pygame
@@ -290,9 +289,9 @@ class Gui:
 
     def draw_buttons(self):
 
-        self.restart_text, self.restart_button = self.create_buttons('Restart', s.large_font, s.large_color, 1.25*s.width, 0.86*s.height)
-        self.flip_text, self.flip_button = self.create_buttons('Flip Board', s.large_font, s.large_color, 1.25*s.width, 0.93*s.height)
-        self.undo_text, self.undo_button = self.create_buttons('Undo move', s.large_font, s.large_color, 1.25*s.width, s.height)
+        self.restart_text, self.restart_button = self.create_buttons('Restart', s.large_font, s.large_color, 1.25*s.width, 0.88*s.height)
+        self.flip_text, self.flip_button = self.create_buttons('Flip Board', s.large_font, s.large_color, 1.25*s.width, 0.95*s.height)
+        self.undo_text, self.undo_button = self.create_buttons('Undo move', s.large_font, s.large_color, 1.25*s.width, 1.02*s.height)
 
     def draw_text(self):
 
