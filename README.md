@@ -13,7 +13,7 @@ In the file settings.py you will find other settings for the game and GUI in gen
 # Start playing
 Playing Affinity Chess is very simple. You can run the command "python gui.py" in the terminal, in the folder where the game is located. Or you can open up gui.py in your favorite IDE and play from there.
 <figure>
-    <img src='https://i.ibb.co/37CLGHL/gui-image.png' alt='missing' />
+    <img src='https://i.ibb.co/zVkhjLR/gui.png' alt='missing' />
     <figcaption><i>Sample view of the Affinity Chess GUI when dragging a piece.</i></figcaption>
   <br>
   <br>
@@ -37,16 +37,13 @@ Affinity Chess supports the rules of normal chess.
 - [X] Draw by 50 move rule
 
 # Other features
-- [X] Simple GUI with drag and drop piece movement.
+- [X] GUI with drag and drop piece movement.
 - [X] Start up window to set:
   - Start position FEN (optional)
   - Human or AI opponent.
   - Play as white or black.
   - AI level.
 - [X] Sound effects.
-
-Future implementation ideas:
-- [ ] Make the GUI larger to include printing e.g. AI evaluation and the current move log. Possibly change concept from Pygame to PySimpleGUI or some other more GUI friendly module. 
   
 # AI
 The AI is based on a Negamax algorithm with the following features currently included:
