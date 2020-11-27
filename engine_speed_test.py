@@ -69,7 +69,7 @@ class Performance:
             self.df = pd.concat([self.df, new_df])
 
         # Add a last row with the complete average time
-        total_average = self.df['Average time'].mean()
+        total_average = round(self.df['Average time'].mean(),2)
         new_df = pd.DataFrame([['Complete average time', 'N/A', 'N/A', total_average]], columns=self.columns)
         self.df = pd.concat([self.df, new_df])
 
