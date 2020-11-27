@@ -109,7 +109,7 @@ All positions in the file 'engine_performance.txt' in the folder test_positions 
  - 2 endgame positions
  - 2 late endgame positions
 
-The results are saved to 'test_timings_{today's date_time}.csv' in the folder '/test_positions/timing'.
+The results are saved in a csv file in the folder test_positions/timing.
 
 
 
