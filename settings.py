@@ -6,6 +6,9 @@ with contextlib.redirect_stdout(None):
 #                              Game settings
 #  --------------------------------------------------------------------------------
 
+# Set window size, all based on the board square size (between 40 and 100)
+sq_size = 70
+
 # Negamax parameters for iterative deepening
 max_search_time = 3  # When it reaches more than x seconds for a move it makes a last search
 min_search_depth = 6  # Choose to always search for at least a certain number of depth
@@ -13,8 +16,13 @@ max_search_depth_strong = 60
 max_search_depth_medium = 4
 max_search_depth_easy = 2
 
-# Set to True to enable opening book
+level = {max_search_depth_strong: 'Strong',
+         max_search_depth_medium: 'Medium',
+         max_search_depth_easy: 'Easy'}
+
+# Set to True to enable opening book. Set maximum opening moves to use before start calculating.
 play_with_opening_book = True
+max_opening_moves = 7
 
 # Set to True if you want to see static evaluation for current position
 static_evaluation = False
@@ -113,12 +121,17 @@ square_to_row = {2: 8,
 title = ' Chess'
 icon = pygame.image.load('imgs/icon.ico')
 
+sq_size = max(min(sq_size, 100), 40)  # Limit window size
 dimension = 8  # 8 rows and 8 columns
-sq_size = 90
-width = height = dimension * sq_size
+width = height = int(dimension * sq_size)
+win_width = int(1.3*width + sq_size)
+win_height = int(height + sq_size)
+board_offset = 0.5 * sq_size
 fps = 60
 
-# Piece images
+# Images
+bg = pygame.transform.smoothscale(pygame.image.load('imgs/bg.png'), (win_width, win_height))
+board_edge = pygame.transform.smoothscale(pygame.image.load('imgs/edge.jpg'), (width + 8, height + 8))
 images = {}
 sprite = pygame.transform.smoothscale(pygame.image.load('imgs/pieces.png'), (int(sq_size*6), int(sq_size*2)))
 pieces = ['wK', 'wQ', 'wB', 'wN', 'wR', 'wp', 'bK', 'bQ', 'bB', 'bN', 'bR', 'bp']
@@ -126,14 +139,50 @@ for i in range(2):
     for j in range(6):
         images[pieces[i*6 + j]] = pygame.Surface.subsurface(sprite, (j*sq_size, i*sq_size, sq_size, sq_size))
 
+light_square = [0]*64
+light_square_sprite = pygame.transform.smoothscale(pygame.image.load('imgs/light_square.jpg'), (int(sq_size*8), int(sq_size*8)))
+for i in range(8):
+    for j in range(8):
+        light_square[i*8 + j] = pygame.Surface.subsurface(light_square_sprite, (j*sq_size, i*sq_size, sq_size, sq_size))
+dark_square = [0]*64
+dark_square_sprite = pygame.transform.smoothscale(pygame.image.load('imgs/dark_square.jpg'), (int(sq_size * 8), int(sq_size * 8)))
+for i in range(8):
+    for j in range(8):
+        dark_square[i * 8 + j] = pygame.Surface.subsurface(dark_square_sprite, (j * sq_size, i * sq_size, sq_size, sq_size))
+
 # Colors
 white = (255, 255, 255)
 black = (0, 0, 0)
+gold = (200, 175, 55)
 red = (255, 0, 0)
 check_red = (200, 12, 12)
 green = (0, 255, 0)
 orange = (255, 128, 0)
 grey = [(x*32, x*32, x*32) for x in reversed(range(1, 8))]  # Grey scale, from light to dark
+
+# Surfaces
+info_width, info_height = 0.25*width, 0.2*height
+info_surface_color = (220, 230, 240)
+
+# Text
+pygame.font.init()
+
+title_font = pygame.font.SysFont('Verdana', int(sq_size*0.21), bold=True)
+title_color = grey[1]
+
+large_font = pygame.font.SysFont('Helvetica', int(sq_size*0.28), bold=True)
+large_color = grey[1]
+
+info_font = pygame.font.SysFont('Verdana', int(sq_size*0.18))
+info_color = grey[6]
+
+move_font = pygame.font.SysFont('Verdana', int(sq_size*0.18))
+
+board_font = pygame.font.SysFont('Times', int(sq_size*0.35))
+
+board_letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
+board_numbers = ['8', '7', '6', '5', '4', '3', '2', '1']
+
 
 # Board
 real_board_squares = [21, 22, 23, 24, 25, 26, 27, 28,
@@ -336,14 +385,14 @@ pawn_mid = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 king_end = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, -70, -53, -52, -51, -51, -52, -53, -70, 0,
-            0, -53, -20, -10, 0, 0, -10, -20, -53, 0,
-            0, -52, -10, 20, 30, 30, 20, -10, -52, 0,
-            0, -51, -10, 30, 40, 40, 30, -10, -51, 0,
-            0, -51, -10, 30,  40, 40, 30, -10, -51, 0,
-            0, -52, -10,  20,  30,  30,  20, -10, -52, 0,
-            0, -53, -30, -20, -20, -20,  -20, -30, -53, 0,
-            0, -70, -53, -52, -51, -51, -52, -53, -70, 0,
+            0, -24, -23, -22, -21, -21, -22, -23, -24, 0,
+            0, -23, -20, -10,  0, 0, -10, -20, -23, 0,
+            0, -22, -10,  20,  30, 30, 20, -10, -22, 0,
+            0, -21, -10,  30,  40, 40, 30, -10, -21, 0,
+            0, -21, -10,  30,  40, 40, 30, -10, -21, 0,
+            0, -22, -10,  20,  30,  30,  20, -10, -22, 0,
+            0, -23, -20, -20, -20, -20,  -20, -20, -23, 0,
+            0, -24, -23, -22, -21, -21, -22, -23, -24, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 queen_end = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
