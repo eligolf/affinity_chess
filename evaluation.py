@@ -3,9 +3,6 @@
 #  --------------------------------------------------------------------------------
 import settings as s
 
-test = False
-
-
 def evaluate(gamestate, depth):
 
     # Initialize scores and other parameters
