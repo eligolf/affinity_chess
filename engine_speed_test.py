@@ -48,7 +48,7 @@ class Performance:
             white_turn = True if 'w' in fen else False
 
             # Init AI function and the gamestate
-            current_ai = ai.Ai(depth)
+            current_ai = ai.Ai(depth, False)
             gamestate = gs.GameState(fen, 'ai', white_turn, depth)
             gamestate.is_white_turn = white_turn
 

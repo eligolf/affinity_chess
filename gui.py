@@ -75,8 +75,8 @@ class Gui:
 
     def main(self):
 
-        running = True
-        while running:
+        self.running = True
+        while self.running:
 
             self.clock.tick(s.fps)
 
@@ -90,7 +90,7 @@ class Gui:
                     event = pop_up('Quit', 'Are you sure you want to quit?', True)
                     if event == 'Yes':
                         pygame.quit()
-                        running = False
+                        self.running = False
 
                 # Mouse events
                 elif event.type == pygame.MOUSEBUTTONDOWN:
@@ -151,16 +151,15 @@ class Gui:
                         self.is_flipped = not self.is_flipped
 
             # Draw the screen after human move
-            if running:
+            if self.running:
                 self.draw(self.gamestate.get_valid_moves())
 
             # Check if stalemated/checkmated and stop the game if so
             if self.gamestate.is_check_mate or self.gamestate.is_stale_mate:
-                running = False
-                game_over_messages(self.gamestate.is_check_mate, self.gamestate.white_wins, self.gamestate.kind_of_stalemate)
+                self.game_over_messages()
 
             # If move made and game not over, change to AI if that option is chosen.
-            if (self.move_made, running, self.game_mode) == (True, True, 'ai'):
+            if (self.move_made, self.running, self.game_mode) == (True, True, 'ai'):
                 move, self.evaluation = self.ai.ai_make_move(self.gamestate)
                 self.process_move(move)
                 self.process_eval()
@@ -191,7 +190,8 @@ class Gui:
 
         # Background
         if self.game_mode == 'ai':
-            pygame.draw.rect(self.screen, s.info_surface_color, (s.width + s.sq_size, s.board_offset - 4, s.info_width, s.info_height))
+            self.screen.blit(s.info_edge, (s.width + s.sq_size - 4, 0.6 * s.height - 4))
+            self.screen.blit(s.info_image, (s.width + s.sq_size, 0.6*s.height))
 
         # Text on surface
         self.draw_text()
@@ -205,28 +205,14 @@ class Gui:
             self.create_text(s.board_numbers[char], s.board_font, s.gold, 0.5*s.board_offset, s.board_offset + 0.5*s.sq_size + s.sq_size*real_char, True)
 
         # Board
-        real_square = 0
-        for row in range(12):
-            for col in range(10):
-                if 2 <= row <= 9 and 1 <= col <= 8:
-                    x, y, w = (s.sq_size * (col - 1) + s.board_offset, s.sq_size * (row - 2) + s.board_offset, s.sq_size) if not self.is_flipped \
-                         else (s.sq_size * (8 - col) + s.board_offset, s.sq_size * (9 - row) + s.board_offset, s.sq_size)
+        self.draw_on_squares(False)
 
-                    # Squares
-                    square = s.dark_square[real_square] if (row + col) % 2 == 0 else s.light_square[real_square]
-                    self.screen.blit(square, pygame.Rect(x, y, w, w))
-                    real_square += 1
+        # Highlight squares if game is started
+        if self.is_started:
+            self.highlight_squares(valid_moves)
 
-                    # Highlight squares if game is started
-                    if self.is_started:
-                        self.highlight_squares(valid_moves)
-
-                    # Pieces
-                        piece = self.gamestate.board[row * 10 + col]
-                    else:
-                        piece = s.start_board[row * 10 + col]
-                    if piece != '--' and (row * 10 + col != self.selected_square or not self.is_dragging):
-                        self.screen.blit(s.images[piece], pygame.Rect(x, y, w, w))
+        # Pieces
+        self.draw_on_squares(True)
 
         # Draw dragged piece
         if self.is_started:
@@ -234,21 +220,44 @@ class Gui:
                 piece = self.gamestate.board[self.selected_square]
                 self.screen.blit(s.images[piece], pygame.Rect(self.x, self.y, s.sq_size, s.sq_size))
 
+    def draw_on_squares(self, piece_drawing):
+
+        real_square = 0
+        for row in range(12):
+            for col in range(10):
+                if 2 <= row <= 9 and 1 <= col <= 8:
+                    x, y, w = (s.sq_size * (col - 1) + s.board_offset, s.sq_size * (row - 2) + s.board_offset, s.sq_size) if not self.is_flipped \
+                        else (s.sq_size * (8 - col) + s.board_offset, s.sq_size * (9 - row) + s.board_offset, s.sq_size)
+
+                    if piece_drawing:
+                        # Pieces
+                        if self.is_started:
+                            piece = self.gamestate.board[row * 10 + col]
+                        else:
+                            piece = s.start_board[row * 10 + col]
+                        if piece != '--' and (row * 10 + col != self.selected_square or not self.is_dragging):
+                            self.screen.blit(s.images[piece], pygame.Rect(x, y, w, w))
+                    else:
+                        # Squares
+                        square = s.dark_square[real_square] if (row + col) % 2 == 0 else s.light_square[real_square]
+                        self.screen.blit(square, pygame.Rect(x, y, w, w))
+                        real_square += 1
+
     def highlight_squares(self, valid_moves):
 
         # Highlight if king is in check
         if self.gamestate.is_in_check:
             king_pos = self.gamestate.white_king_location if self.gamestate.is_white_turn else self.gamestate.black_king_location
             row, col = (king_pos // 10 - 2, king_pos % 10 - 1) if not self.is_flipped else (9 - king_pos // 10, 8 - king_pos % 10)
-            pygame.draw.rect(self.screen, s.check_red, (col * s.sq_size + s.board_offset, row * s.sq_size + s.board_offset, s.sq_size, s.sq_size), 2)
+            self.draw_highlighting(s.check_red, s.check_red_t, col, row, 2)
 
         # Highlight latest move
         start_row, start_col = (self.latest_move[-1][0] // 10 - 2, self.latest_move[-1][0] % 10 - 1) if not self.is_flipped else \
                                (9 - self.latest_move[-1][0] // 10, 8 - self.latest_move[-1][0] % 10)
         end_row, end_col = (self.latest_move[-1][1] // 10 - 2, self.latest_move[-1][1] % 10 - 1) if not self.is_flipped else \
                            (9 - self.latest_move[-1][1] // 10, 8 - self.latest_move[-1][1] % 10)
-        pygame.draw.rect(self.screen, s.grey[1], (start_col * s.sq_size + s.board_offset, start_row * s.sq_size + s.board_offset, s.sq_size, s.sq_size), 3)
-        pygame.draw.rect(self.screen, s.grey[1], (end_col * s.sq_size + s.board_offset, end_row * s.sq_size + s.board_offset, s.sq_size, s.sq_size), 3)
+        self.draw_highlighting(s.grey[1], s.grey_t[1], start_col, start_row, 2)
+        self.draw_highlighting(s.grey[1], s.grey_t[1], end_col, end_row, 2)
 
         # Highlight when dragging a piece
         if self.is_dragging:
@@ -258,14 +267,20 @@ class Gui:
 
             # Selected square
             if self.gamestate.board[square][0] == ('w' if self.gamestate.is_white_turn else 'b'):
-                pygame.draw.rect(self.screen, s.orange, (col * s.sq_size + s.board_offset, row * s.sq_size + s.board_offset, s.sq_size, s.sq_size), 4)
+                self.draw_highlighting(s.orange, s.orange_t, col, row, 2)
 
             # Possible moves
             for move in valid_moves:
                 if move[0] == square:
                     row, col = (move[1] // 10 - 2, move[1] % 10 - 1) if not self.is_flipped else \
                                (9 - move[1] // 10, 8 - move[1] % 10)
-                    pygame.draw.rect(self.screen, s.green, (col * s.sq_size + s.board_offset, row * s.sq_size + s.board_offset, s.sq_size, s.sq_size), 4)
+                    self.draw_highlighting(s.green, s.green_t, col, row, 2)
+
+    def draw_highlighting(self, color, color_t, col, row, thickness):
+        surface = pygame.Surface((s.sq_size, s.sq_size), pygame.SRCALPHA)
+        surface.fill(color_t)
+        self.screen.blit(surface, (col * s.sq_size + s.board_offset, row * s.sq_size + s.board_offset))
+        pygame.draw.rect(self.screen, color, (col * s.sq_size + s.board_offset, row * s.sq_size + s.board_offset, s.sq_size, s.sq_size), thickness, border_radius=1)
 
     def create_buttons(self, text, font, color, x, y):
         text = font.render(text, True, color)
@@ -273,7 +288,7 @@ class Gui:
         rect.center = (x, y)
 
         box = (rect[0] - s.sq_size/10, rect[1] - s.sq_size/10 / 2, rect[2] + s.sq_size/10 * 2, rect[3] + s.sq_size/10)
-        pygame.draw.rect(self.screen, s.info_surface_color, box, int(s.sq_size/20 / 2))
+        pygame.draw.rect(self.screen, s.gold, box, 1)
         self.screen.blit(text, rect)
 
         return text, rect
@@ -297,10 +312,10 @@ class Gui:
 
         # AI-related prints
         if self.game_mode == 'ai':
-            self.create_text('AI info', s.title_font, s.black, 1.14*s.width*1.05, 0.75*s.sq_size, False)
-            self.create_text(f'Level: {s.level[self.max_search_depth]}', s.info_font, s.black, 1.14*s.width, 0.75*1.4*s.sq_size, False)
-            self.create_text(f'Depth: {self.ai.max_depth}', s.info_font, s.black, 1.14*s.width, 0.75 * 1.8 * s.sq_size, False)
-            self.create_text(f'Eval: {self.evaluation}', s.info_font, s.black, 1.14*s.width, 0.75*2.2*s.sq_size, False)
+            self.create_text('AI info', s.title_font, s.black, 1.2*s.width, 0.63*s.height, False)
+            self.create_text(f'Level: {s.level[self.max_search_depth]}', s.info_font, s.black, 1.14*s.width, 0.63*s.height + 0.4*s.sq_size, False)
+            self.create_text(f'Depth: {self.ai.max_depth}', s.info_font, s.black, 1.14*s.width, 0.63*s.height + 0.7*s.sq_size, False)
+            self.create_text(f'Eval: {self.evaluation}', s.info_font, s.black, 1.14*s.width, 0.63*s.height + s.sq_size, False)
 
     def process_eval(self):
 
@@ -451,6 +466,24 @@ class Gui:
 
         return square_under_mouse, col, row
 
+    def game_over_messages(self):
+
+        if self.gamestate.is_check_mate:
+            winner = 'white' if self.gamestate.white_wins else 'black'
+            event = pop_up('Checkmate', f'Checkmate, {winner} won! Do you want to play again?', True)
+            if event == 'Yes':
+                Gui().main()
+            else:
+                pygame.quit()
+                self.running = False
+        else:
+            event = pop_up(self.gamestate.kind_of_stalemate, 'Game drawn! Do you want to play again?', True)
+            if event == 'Yes':
+                Gui().main()
+            else:
+                pygame.quit()
+                self.running = False
+
     def chose_promotion_piece(self, possible_move):
         event, values = sg.Window('', [[sg.Text('Promote to:')],
                                        [sg.Listbox(['Q', 'R', 'B', 'N'], size=(20, 4), key='LB')],
@@ -467,7 +500,7 @@ class Gui:
                       [sg.Text('')],
                       [sg.Text('Opponent:  '), sg.Radio('AI', '1', default=True, size=(5, 1), key='ai'), sg.Radio('Human', '1', size=(5, 1), key='human')],
                       [sg.Text('Play as:     '), sg.Radio('White', '2', default=True, size=(5, 1), key='white'), sg.Radio('Black', '2', key='black')],
-                      [sg.Text('AI strength:'), sg.Radio('Strong', '3', default=True, size=(5, 1), key='strong'), sg.Radio('Medium', '3', key='medium'), sg.Radio('Easy', '3', key='easy')],
+                      [sg.Text('AI strength:'), sg.Radio('Hard', '3', default=True, size=(5, 1), key='hard'), sg.Radio('Normal', '3', key='normal'), sg.Radio('Easy', '3', key='easy')],
                       [sg.Text('')],
                       [sg.Submit()]]
         else:
@@ -476,7 +509,7 @@ class Gui:
                       [sg.Text('')],
                       [sg.Text('Opponent:  '), sg.Radio('AI', '1', default=True, size=(5, 1), key='ai'), sg.Radio('Human', '1', size=(5, 1), key='human')],
                       [sg.Text('Play as:     '), sg.Radio('White', '2', default=True, size=(5, 1), key='white'), sg.Radio('Black', '2', key='black')],
-                      [sg.Text('AI strength:'), sg.Radio('Strong', '3', default=True, size=(5, 1), key='strong'), sg.Radio('Medium', '3', key='medium'), sg.Radio('Easy', '3', key='easy')],
+                      [sg.Text('AI strength:'), sg.Radio('Hard', '3', default=True, size=(5, 1), key='hard'), sg.Radio('Normal', '3', key='normal'), sg.Radio('Easy', '3', key='easy')],
                       [sg.Text('')],
                       [sg.Submit(pad=(10, 18))]]
 
@@ -485,7 +518,7 @@ class Gui:
         if event == sg.WIN_CLOSED:
             self.game_mode = 'ai'
             self.is_ai_white = False
-            self.max_search_depth = s.max_search_depth_strong
+            self.max_search_depth = s.max_search_depth_hard
         if values['ai']:
             self.game_mode = 'ai'
         if values['human']:
@@ -494,10 +527,10 @@ class Gui:
             self.is_ai_white = False
         if values['black']:
             self.is_ai_white = True
-        if values['strong']:
-            self.max_search_depth = s.max_search_depth_strong
-        if values['medium']:
-            self.max_search_depth = s.max_search_depth_medium
+        if values['hard']:
+            self.max_search_depth = s.max_search_depth_hard
+        if values['normal']:
+            self.max_search_depth = s.max_search_depth_normal
         if values['easy']:
             self.max_search_depth = s.max_search_depth_easy
         if values['fen']:
@@ -531,22 +564,6 @@ def pop_up(title, message, question):
         window = sg.Window(title, layout)
         window.close()
 
-
-def game_over_messages(checkmate, white_wins, stalemate_type):
-
-    if checkmate:
-        winner = 'white' if white_wins else 'black'
-        event = pop_up('Checkmate', f'Checkmate, {winner} won! Do you want to play again?', True)
-        if event == 'Yes':
-            Gui().main()
-        else:
-            pygame.quit()
-    else:
-        event = pop_up(stalemate_type, 'Game drawn! Do you want to play again?', True)
-        if event == 'Yes':
-            Gui().main()
-        else:
-            pygame.quit()
 
 # --------------------------------------------------------------------------------
 #                         Run the game

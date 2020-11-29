@@ -7,22 +7,22 @@ with contextlib.redirect_stdout(None):
 #  --------------------------------------------------------------------------------
 
 # Set window size, all based on the board square size (between 40 and 100)
-sq_size = 80
+sq_size = 85
 
 # Negamax parameters for iterative deepening
 max_search_time = 3  # When it reaches more than x seconds for a move it makes a last search
 min_search_depth = 6  # Choose to always search for at least a certain number of depth
-max_search_depth_strong = 60
-max_search_depth_medium = 4
+max_search_depth_hard = 60
+max_search_depth_normal = 4
 max_search_depth_easy = 2
 
-level = {max_search_depth_strong: 'Strong',
-         max_search_depth_medium: 'Medium',
+level = {max_search_depth_hard: 'Hard',
+         max_search_depth_normal: 'Normal',
          max_search_depth_easy: 'Easy'}
 
 # Set to True to enable opening book. Set maximum opening moves to use before start calculating.
-play_with_opening_book = False
-max_opening_moves = 7
+play_with_opening_book = True
+max_opening_moves = 10
 
 # Set to True if you want to see static evaluation for current position
 static_evaluation = False
@@ -132,6 +132,9 @@ fps = 60
 # Images
 bg = pygame.transform.smoothscale(pygame.image.load('imgs/bg.png'), (win_width, win_height))
 board_edge = pygame.transform.smoothscale(pygame.image.load('imgs/edge.jpg'), (width + 8, height + 8))
+info_edge = pygame.transform.smoothscale(pygame.image.load('imgs/edge.jpg'), (int(0.25 * width + 8), int(0.2 * height + 8)))
+info_image = pygame.transform.smoothscale(pygame.image.load('imgs/light_wood.jpg'), (int(0.25 * width), int(0.2 * height)))
+
 images = {}
 sprite = pygame.transform.smoothscale(pygame.image.load('imgs/pieces.png'), (int(sq_size*6), int(sq_size*2)))
 pieces = ['wK', 'wQ', 'wB', 'wN', 'wR', 'wp', 'bK', 'bQ', 'bB', 'bN', 'bR', 'bp']
@@ -160,25 +163,28 @@ green = (0, 255, 0)
 orange = (255, 128, 0)
 grey = [(x*32, x*32, x*32) for x in reversed(range(1, 8))]  # Grey scale, from light to dark
 
+# Transparent colors
+alpha = 90
+orange_t = (255, 128, 0, alpha)
+green_t = (0, 255, 0, alpha)
+check_red_t = (200, 12, 12, alpha)
+grey_t = [(x * 32, x * 32, x * 32, alpha) for x in reversed(range(1, 8))]  # Grey scale, from light to dark
+
 # Surfaces
-info_width, info_height = 0.25*width, 0.2*height
+info_width, info_height = 0.25 * width, 0.9 * height
 info_surface_color = (220, 230, 240)
 
 # Text
 pygame.font.init()
 
-title_font = pygame.font.SysFont('Verdana', int(sq_size*0.21), bold=True)
-title_color = grey[1]
+text_color = gold
+large_color = grey[0]
 
-large_font = pygame.font.SysFont('Helvetica', int(sq_size*0.28), bold=True)
-large_color = grey[1]
-
-info_font = pygame.font.SysFont('Verdana', int(sq_size*0.18))
-info_color = grey[6]
-
-move_font = pygame.font.SysFont('Verdana', int(sq_size*0.18))
-
-board_font = pygame.font.SysFont('Times', int(sq_size*0.35))
+title_font = pygame.font.SysFont('Verdana', int(sq_size * 0.21), bold=True)
+large_font = pygame.font.SysFont('Helvetica', int(sq_size * 0.28), bold=True)
+info_font = pygame.font.SysFont('Verdana', int(sq_size * 0.18))
+move_font = pygame.font.SysFont('Verdana', int(sq_size * 0.18))
+board_font = pygame.font.SysFont('Times', int(sq_size * 0.35))
 
 board_letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
 board_numbers = ['8', '7', '6', '5', '4', '3', '2', '1']
@@ -386,12 +392,12 @@ pawn_mid = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 king_end = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, -24, -23, -22, -21, -21, -22, -23, -24, 0,
-            0, -23, -20, -10,  0, 0, -10, -20, -23, 0,
+            0, -23, -12, -10,  -10, -10, -10, -10, -23, 0,
             0, -22, -10,  20,  30, 30, 20, -10, -22, 0,
             0, -21, -10,  30,  40, 40, 30, -10, -21, 0,
             0, -21, -10,  30,  40, 40, 30, -10, -21, 0,
             0, -22, -10,  20,  30,  30,  20, -10, -22, 0,
-            0, -23, -20, -20, -20, -20,  -20, -20, -23, 0,
+            0, -23, -12, -10, -10, -10,  -10, -12, -23, 0,
             0, -24, -23, -22, -21, -21, -22, -23, -24, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -448,13 +454,14 @@ pawn_end = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 50, 50, 50, 50, 50, 50, 50, 50, 0,
             0, 30, 30, 30, 30, 30, 30, 30, 30, 0,
+            0, 20, 20, 20, 25, 25, 20, 20, 20, 0,
             0, 10, 10, 10, 10, 10, 10, 10, 10, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, -10, -10, -10, -10, -10, -10, -10, -10, 0,
-            0, -20, -20, -20, -20, -20, -20, -20, -20, 0,
+            0, -5, -5, -5, -5, -5, -5, -5, -5, 0,
+            0, -10, -10, -10, -20, -20, -10, -10, -10, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
 piece_value_mid_game = {'K': king_mid,
                         'Q': queen_mid,
                         'R': rook_mid,

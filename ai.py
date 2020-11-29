@@ -13,16 +13,17 @@ import math
 
 class Ai:
 
-    def __init__(self, min_search_depth=s.min_search_depth):
+    def __init__(self, min_search_depth=s.min_search_depth, is_playing_with_opening_book=s.play_with_opening_book):
 
         # Transposition table init
-        self.tt_entry = {'value': 0, 'flag': '', 'depth': 0, 'best move': None, 'valid moves': []}
+        self.tt_entry = {'value': 0, 'flag': '', 'depth': 0, 'best move': None}
+        self.tt_entry_q = {'value': 0, 'flag': ''}
 
         self.valid_moves_history = {}
         self.killer_moves = {}
 
         # Opening related parameters
-        self.is_in_opening = s.play_with_opening_book
+        self.is_in_opening = is_playing_with_opening_book
 
         # Count the nodes searched, only for development purposes.
         self.counter = -1
@@ -91,13 +92,14 @@ class Ai:
             print('----------------------------------')
 
             # Always return moves from an even number of depth, helps in some situation since quiescence search is not implemented
-            if len(self.best_moves) % 2 == 0:
-                move = self.best_moves[-1][0]
-                evaluation = self.best_moves[-1][1]
-            else:
-                move = self.best_moves[-2][0]
-                evaluation = self.best_moves[-2][1]
-                self.max_depth -= 1
+            if self.max_depth >= 4:
+                if len(self.best_moves) % 2 == 0:
+                    move = self.best_moves[-1][0]
+                    evaluation = (self.best_moves[-1][1] + self.best_moves[-2][1]) / 2
+                else:
+                    move = self.best_moves[-2][0]
+                    evaluation = (self.best_moves[-1][1] + self.best_moves[-2][1]) / 2
+                    self.max_depth -= 1
 
         return move, evaluation
 
@@ -187,6 +189,63 @@ class Ai:
         self.tt_entry[gamestate.zobrist_key]['best move'] = best_move
 
         return best_move, max_eval
+
+#  --------------------------------------------------------------------------------
+#                           Quiescence search
+#  --------------------------------------------------------------------------------
+
+    '''def quiescence(self, gamestate, alpha, beta, color, moves):
+
+        moves += 1
+
+        # Check if value is in table
+        key = gamestate.zobrist_key
+        if key in self.tt_entry_q:
+            if self.tt_entry_q[key]['flag'] == 'exact':
+                score = self.tt_entry_q[key]['value']
+            else:
+                score = color * e.evaluate(gamestate, 0)
+                self.tt_entry_q[key] = {'flag': 'exact'}
+                self.tt_entry_q[key]['value'] = score
+        else:
+            score = e.evaluate(gamestate, 0)
+            self.tt_entry_q[key] = {'flag': 'exact'}
+            self.tt_entry_q[key]['value'] = score
+
+        big_delta = s.mvv_lva_values[gamestate.piece_captured[1]] + 200
+        if score < alpha - big_delta:
+            return alpha
+        if score >= beta:
+            return beta
+        if alpha < score:
+            alpha = score
+
+        # If having looked through 2 moves then stop and return value
+        if moves >= 3:
+            return score
+
+        # Don't search valid moves again if it has been done in last iteration
+        if key in self.valid_moves_history and self.valid_moves_history[key]:
+            children = self.valid_moves_history[key]
+        else:
+            children = gamestate.get_valid_moves()
+            self.valid_moves_history[key] = children
+
+        children = self.sort_moves(gamestate, children, 0)
+
+        for child in children:
+
+            # Only look at capture moves (and later checks)
+            if gamestate.board[child[1]] != '--':
+                gamestate.make_move(child[0], child[1], child[2])
+                score = -self.quiescence(gamestate, -beta, -alpha, -color, moves)
+                gamestate.unmake_move()
+        if score >= beta:
+            return beta
+        if score > alpha:
+            alpha = score
+
+        return alpha'''
 
 #  --------------------------------------------------------------------------------
 #                       Sort moves for Negamax

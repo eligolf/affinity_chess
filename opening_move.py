@@ -2,6 +2,7 @@ import chess
 import chess.polyglot
 import random
 import os
+import time
 
 import fen_handling as fh
 import settings as s
@@ -23,16 +24,20 @@ def make_opening_move(gamestate):
                         moves.append(entry.move)
 
                         # Only pick from the most common openings
-                        if i == 4:
+                        if i == 3:
                             break
 
-    # Pick a random move moves if exists, else return None
+    # Pick a random move if exists, else return None
     if moves:
         random_move = random.choice(moves)
     else:
         return None
 
+    # Convert the move to the right format
     move = process_move(gamestate, random_move)
+
+    # Wait for some time just so simulate the AI "thinking" during openings
+    time.sleep(random.uniform(0.5, 1.5))
 
     return move
 
