@@ -3,13 +3,9 @@
 # --------------------------------------------------------------------------------
 
 import settings as s
-import ai
 import fen_handling as fh
 
-import time
-import copy
 import random
-from itertools import chain
 
 
 class GameState:
@@ -637,7 +633,7 @@ class GameState:
                         self.piece_dict[0]['N'] == 0 and self.piece_dict[0]['B'] == 1 and self.piece_dict[1]['N'] == 0 and self.piece_dict[1]['B'] == 1 or \
                         self.piece_dict[0]['N'] == 1 and self.piece_dict[0]['B'] == 0 and self.piece_dict[1]['N'] == 0 and self.piece_dict[1]['B'] == 1 or \
                         self.piece_dict[0]['N'] == 0 and self.piece_dict[0]['B'] == 1 and self.piece_dict[1]['N'] == 1 and self.piece_dict[1]['B'] == 0 or \
-                        self.piece_dict[0]['N'] >= 0 and self.piece_dict[0]['B'] == 0 and self.piece_dict[1]['N'] >= 0 and self.piece_dict[1]['B'] == 0:
+                        self.piece_dict[0]['N'] <= 2 and self.piece_dict[0]['B'] == 0 and self.piece_dict[1]['N'] <= 2 and self.piece_dict[1]['B'] == 0:
 
                     self.is_stale_mate = True
                     self.kind_of_stalemate = 'Insufficient material'

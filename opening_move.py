@@ -15,7 +15,7 @@ def make_opening_move(gamestate):
 
     board = chess.Board(fen)
 
-    for subdir, dirs, files in os.walk('opening_books'):
+    for subdir, dirs, files in os.walk('opening_book'):
         for file in files:
             ext = os.path.splitext(file)[-1].lower()
             if ext in '.bin':

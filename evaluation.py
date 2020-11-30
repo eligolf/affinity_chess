@@ -3,6 +3,7 @@
 #  --------------------------------------------------------------------------------
 import settings as s
 
+
 def evaluate(gamestate, depth):
 
     # Initialize scores and other parameters
@@ -13,6 +14,10 @@ def evaluate(gamestate, depth):
         return 1e9 + depth if gamestate.is_white_turn else -1e9 - depth
     if gamestate.is_stale_mate:
         return 0
+
+    # Piece values with base and piece-dependent values (updated in make/unmake move functions)
+    white_score += gamestate.piece_values[0]
+    black_score += gamestate.piece_values[1]
 
 # -------------------------------------------------------------------------------------------------
 #                          Up until endgame evaluation
@@ -33,10 +38,6 @@ def evaluate(gamestate, depth):
                 black_score += s.blocking_d_e_pawn_punishment
             if gamestate.board[34] == 'bp' and gamestate.board[44] != '--':
                 black_score += s.blocking_d_e_pawn_punishment
-
-        # Piece values with base and piece-dependent values (updated in make/unmake move functions)
-        white_score += gamestate.piece_values[0]
-        black_score += gamestate.piece_values[1]
 
         # Bishop pair bonus
         if gamestate.piece_dict[0]['B'] == 2:

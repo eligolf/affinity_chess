@@ -6,6 +6,7 @@ import settings as s
 from gamestate import *
 import evaluation as e
 import opening_move as om
+import syzygy as sy
 
 import time
 import math
@@ -47,7 +48,7 @@ class Ai:
         for depth in range(gamestate.max_search_depth + 1):
             self.killer_moves[depth] = []
 
-        self.start_color = -1 if gamestate.is_ai_white else 1
+        start_color = -1 if gamestate.is_ai_white else 1
 
         # Don't try an opening move if the start position is not the standard start position
         if gamestate.start_fen != s.start_fen:
@@ -63,6 +64,12 @@ class Ai:
         # Negamax with iterative deepening if not in opening
         if not self.is_in_opening:
 
+            # Try if position is in syzygy tablebase, only in endgames
+            if not gamestate.midgame:
+                endgame_move, distance_to_zero = sy.find_endgame_move(gamestate)
+                if endgame_move:
+                    return endgame_move, e.evaluate(gamestate, 0)
+
             # Init parameters for iterative deepening
             self.tt_entry = {'value': 0, 'flag': '', 'depth': 0, 'best move': None, 'valid moves': []}
             self.best_moves = []
@@ -71,7 +78,7 @@ class Ai:
             time_start = time.time()
             for depth in range(1, gamestate.max_search_depth + 1):
 
-                move, evaluation = self.negamax(gamestate, depth, -math.inf, math.inf, self.start_color)
+                move, evaluation = self.negamax(gamestate, depth, -math.inf, math.inf, start_color)
                 self.best_moves.append([move, evaluation])
 
                 time_end = time.time()

@@ -10,13 +10,7 @@ import fen_handling as fh
 import PySimpleGUI as sg
 import cProfile
 import ctypes
-import re
 import os
-import sys
-import copy
-import time
-import random
-import pandas as pd
 import contextlib
 with contextlib.redirect_stdout(None):
     import pygame
@@ -63,6 +57,7 @@ class Gui:
         sg.theme('DarkAmber')
         self.start_pop_up()
         self.is_started = True
+        self.running = True
 
         # Init Gamestate and AI
         self.gamestate = gs.GameState(self.start_fen, self.game_mode, self.is_ai_white, self.max_search_depth)
@@ -75,7 +70,6 @@ class Gui:
 
     def main(self):
 
-        self.running = True
         while self.running:
 
             self.clock.tick(s.fps)

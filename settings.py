@@ -7,7 +7,7 @@ with contextlib.redirect_stdout(None):
 #  --------------------------------------------------------------------------------
 
 # Set window size, all based on the board square size (between 40 and 100)
-sq_size = 85
+sq_size = 70
 
 # Negamax parameters for iterative deepening
 max_search_time = 3  # When it reaches more than x seconds for a move it makes a last search
