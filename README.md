@@ -5,7 +5,7 @@ Affinity Chess is a chess program/engine written in Python as a hobby project to
 At start up you will be able to chose some initial settings for the game. You can use a custom FEN position as start position, or leave the field empty to use the normal initial chess position. 
 
 <figure>
-    <img src='https://i.ibb.co/c1jtwCX/start-up.png' alt='missing' />
+    <img src='https://user-images.githubusercontent.com/59540119/100571582-cc2e3280-32d3-11eb-86d9-268fa8b4f062.png' alt='missing' />
 </figure>
 
 In the file settings.py you will find other settings for the game and GUI in general.
