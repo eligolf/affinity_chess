@@ -13,7 +13,7 @@ In the file settings.py you will find other settings for the game and GUI in gen
 # Start playing
 Playing Affinity Chess is very simple. You can run the command "python gui.py" in the terminal, in the folder where the game is located. Or you can open up gui.py in your favorite IDE and play from there.
 <figure>
-    <img src='https://i.ibb.co/zVkhjLR/gui.png' alt='missing' />
+    <img src='https://user-images.githubusercontent.com/59540119/100571413-5c1fac80-32d3-11eb-9225-5ee58f2c2cd6.png' alt='missing' width="70%" height="70%" />
     <figcaption><i>Sample view of the Affinity Chess GUI during a game against the AI.</i></figcaption>
   <br>
   <br>
