@@ -70,12 +70,13 @@ The evaluation function is located in evaluation.py. Some parameters for the eva
 - [X] Rook on open or semi open file bonus
 - [X] Punishment for having a piece in front of undeveloped d- and e-pawns
 - [X] Punishment for not developing pieces
+- [X] Attack the enemy king
+- [X] Attack the center squares
+- [X] Bishops and rooks punished with lots of pawns, knights better
 
 Future implementation ideas:
-- [ ] Attack the enemy king
-- [ ] Attack the center squares
 - [ ] Passed pawns
-- [ ] Trading material when being up in material
+- [ ] Favor to trade material when being up in material, and vise versa
 - [ ] Mobility
 
 # Tests
