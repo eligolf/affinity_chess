@@ -58,7 +58,11 @@ Future implementation ideas:
 
 ### Evaluation function
 
-The evaluation function is located in evaluation.py. Some parameters for the evaluation are updated in the move/unmake move functions in gamestate.py. Currently the following parameters are considered when the AI evaluates a position.  
+The evaluation function is located in evaluation.py. Some parameters for the evaluation are updated in the move/unmake move functions in gamestate.py. 
+
+Note that the evaluation score given by the AI in the GUI is always from the AI perspective. A positive score means the AI thinks its winning and a negative score means it thinks the human is winning, no matter what color it plays. 
+
+Currently the following parameters are considered when the AI evaluates a position:  
 - [X] Checkmate and stalemate
 - [X] Interpolation between midgame and endgame phase
 - [X] Basic piece values, same in mid- and endgame
