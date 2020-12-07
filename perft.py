@@ -15,6 +15,9 @@ import gamestate as gs
 
 import pandas as pd
 import csv
+import contextlib
+with contextlib.redirect_stdout(None):
+    import pygame
 
 test_file = 'short'
 
@@ -60,6 +63,10 @@ class Perft:
 
         print('Perft failed, see "failed_tests.csv" for more information about the failed test cases.') if self.test_failed else print('Perft completed successfully.')
 
+        # Play a sound when finished
+        sound = pygame.mixer.Sound('sounds/ding.wav')
+        sound.play()
+
     def perft(self, gamestate, depth):
 
         if depth == 0:
@@ -73,7 +80,7 @@ class Perft:
         tot = 0
         for child in children:
 
-            gamestate.make_move(child[0], child[1], child[2])
+            gamestate.make_move(child)
             tot += self.perft(gamestate, depth - 1)
             gamestate.unmake_move()
 
@@ -84,6 +91,7 @@ class Perft:
 #                             Run perft tests
 #  --------------------------------------------------------------------------------
 
+pygame.init()
 tests = f'test_positions/{test_file}.txt'
 temp = open(tests, "r")
 test_positions = temp.readlines()

@@ -26,6 +26,9 @@ import csv
 import re
 import time
 from datetime import datetime
+import contextlib
+with contextlib.redirect_stdout(None):
+    import pygame
 
 test_file = 'engine_performance'
 runs_per_game = 5  # Run the test cases this many games and get the average timing
@@ -68,8 +71,10 @@ class Performance:
             new_df = pd.DataFrame([[test_case, depth, time_per_run, average_time]], columns=self.columns)
             self.df = pd.concat([self.df, new_df])
 
+            print(f'{j + 1}/{len(test_positions)} tests performed.')
+
         # Add a last row with the complete average time
-        total_average = round(self.df['Average time'].mean(),2)
+        total_average = round(self.df['Average time'].mean(), 2)
         new_df = pd.DataFrame([['Complete average time', 'N/A', 'N/A', total_average]], columns=self.columns)
         self.df = pd.concat([self.df, new_df])
 
@@ -77,11 +82,16 @@ class Performance:
         current_time = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
         self.df.to_csv(f'test_positions/timing/test_timings_{current_time}.csv', index=False)
 
+        # Play a sound when finished
+        sound = pygame.mixer.Sound('sounds/ding.wav')
+        sound.play()
+
 
 #  --------------------------------------------------------------------------------
 #                      Run engine performance test
 #  --------------------------------------------------------------------------------
 
+pygame.init()
 tests = f'test_positions/{test_file}.txt'
 temp = open(tests, "r")
 test_positions = temp.readlines()

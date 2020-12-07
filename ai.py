@@ -37,6 +37,7 @@ class Ai:
 
         # To what depth it searched
         self.max_depth = 0
+        self.real_depth = 0
         self.min_search_depth = min_search_depth
 
     def ai_make_move(self, gamestate):
@@ -56,7 +57,9 @@ class Ai:
 
         # Check if there is any opening moves to make in the current position
         if self.is_in_opening:
+            time_start = time.time()
             move = om.make_opening_move(gamestate)
+            self.timer = time.time() - time_start
             evaluation = 0
             if not move or gamestate.move_counter >= 0.5 + s.max_opening_moves:
                 self.is_in_opening = False
@@ -66,9 +69,21 @@ class Ai:
 
             # Try if position is in syzygy tablebase, only in endgames
             if not gamestate.midgame:
-                endgame_move, distance_to_zero = sy.find_endgame_move(gamestate)
-                if endgame_move:
-                    return endgame_move, e.evaluate(gamestate, 0)
+                # Only the 3, 4 and 5 piece tablebases are currently implemented
+                if sum(gamestate.piece_dict[0].values()) + sum(gamestate.piece_dict[1].values()) <= 5:
+                    endgame_move, evaluation, dtz = sy.find_endgame_move(gamestate)
+                    if endgame_move:
+
+                        start_time = time.time()
+                        # Also first try if can find an easy mate, if so play that
+                        if abs(dtz) <= 1:
+                            mate_depth = gamestate.max_search_depth if gamestate.max_search_depth < 6 else 6
+                            endgame_move_2, evaluation_2 = self.negamax(gamestate, mate_depth, -math.inf, math.inf, start_color, False)
+                            self.timer = time.time() - start_time
+                            if abs(evaluation_2) >= 1e6:
+                                return endgame_move_2, evaluation_2
+
+                        return endgame_move, evaluation
 
             # Init parameters for iterative deepening
             self.tt_entry = {'value': 0, 'flag': '', 'depth': 0, 'best move': None, 'valid moves': []}
@@ -78,7 +93,7 @@ class Ai:
             time_start = time.time()
             for depth in range(1, gamestate.max_search_depth + 1):
 
-                move, evaluation = self.negamax(gamestate, depth, -math.inf, math.inf, start_color)
+                move, evaluation = self.negamax(gamestate, depth, -math.inf, math.inf, start_color, False)
                 self.best_moves.append([move, evaluation])
 
                 time_end = time.time()
@@ -93,19 +108,18 @@ class Ai:
 
                 # Break if time has run out, if reached at least min depth, or if finding a mate in lowest number of moves
                 if (self.timer > s.max_search_time and depth >= self.min_search_depth) or (evaluation / 100) > 100:
-                    self.max_depth = depth
                     break
-            self.max_depth = depth
             print('----------------------------------')
 
             # Always return moves from an even number of depth, helps in some situation since quiescence search is not implemented
-            if self.max_depth >= 4:
+            self.max_depth = depth
+            self.real_depth = self.max_depth
+            if self.max_depth >= 2:
+                evaluation = (self.best_moves[-1][1] + self.best_moves[-2][1]) / 2
                 if len(self.best_moves) % 2 == 0:
                     move = self.best_moves[-1][0]
-                    evaluation = (self.best_moves[-1][1] + self.best_moves[-2][1]) / 2
                 else:
                     move = self.best_moves[-2][0]
-                    evaluation = (self.best_moves[-1][1] + self.best_moves[-2][1]) / 2
                     self.max_depth -= 1
 
         return move, evaluation
@@ -114,7 +128,7 @@ class Ai:
 #                            Negamax function
 #  --------------------------------------------------------------------------------
 
-    def negamax(self, gamestate, depth, alpha, beta, color):
+    def negamax(self, gamestate, depth, alpha, beta, color, allow_nullmove):
         alpha_original = alpha
 
         #  self.counter += 1
@@ -131,7 +145,13 @@ class Ai:
             if alpha >= beta:
                 return self.tt_entry[key]['best move'], self.tt_entry[key]['value']
 
-        # If depth is 0, always evaluate leaf node
+        # Depth with quiescence search
+        '''if depth == 0:
+            if gamestate.piece_captured != '--':
+                return None, self.quiescence(gamestate, -beta, -alpha, -color, 0)
+            else:
+                return None, e.evaluate(gamestate, depth) * color'''
+        # Depth = 0 without quiescence search
         if depth == 0:
             return None, e.evaluate(gamestate, depth) * color
 
@@ -146,16 +166,18 @@ class Ai:
         if gamestate.is_check_mate or gamestate.is_stale_mate:
             return None, e.evaluate(gamestate, depth) * color
 
-        # Null move logic here (https://hci.iwr.uni-heidelberg.de/system/files/private/downloads/1935772097/report_qingyang-cao_enhanced-forward-pruning.pdf,
+        # Null move logic (https://hci.iwr.uni-heidelberg.de/system/files/private/downloads/1935772097/report_qingyang-cao_enhanced-forward-pruning.pdf,
         # http://mediocrechess.blogspot.com/2007/01/guide-null-moves.html)
-        '''if allow_nullmove and depth >= 3 and self.not_PV:  # and not using PV line
-            if not gamestate.is_in_check:
+        # https://open-chess.org/viewtopic.php?t=2994
+        if allow_nullmove and depth - 1 - s.R >= 0:  # and e.evaluate(gamestate, depth) >= beta - 50:  # and not using PV line
+            king_pos = gamestate.white_king_location if gamestate.is_white_turn else gamestate.black_king_location
+            if not gamestate.check_for_checks(king_pos):
                 gamestate.make_nullmove()
                 evaluation = -self.negamax(gamestate, depth - 1 - s.R, -beta, -beta + 1, -color, False)[1]
                 gamestate.unmake_nullmove()
 
                 if evaluation >= beta:
-                    return None, evaluation'''
+                    return None, evaluation
 
         # Sort moves before Negamax
         children = self.sort_moves(gamestate, children, depth)
@@ -164,8 +186,9 @@ class Ai:
         max_eval = -math.inf
         for child in reversed(children):
 
-            gamestate.make_move(child[0], child[1], child[2])
-            score = -self.negamax(gamestate, depth - 1, -beta, -alpha, -color)[1]
+            gamestate.make_move(child)
+
+            score = -self.negamax(gamestate, depth - 1, -beta, -alpha, -color, True)[1]
             gamestate.unmake_move()
 
             if score > max_eval:
@@ -201,7 +224,7 @@ class Ai:
 #                           Quiescence search
 #  --------------------------------------------------------------------------------
 
-    '''def quiescence(self, gamestate, alpha, beta, color, moves):
+    def quiescence(self, gamestate, alpha, beta, color, moves):
 
         moves += 1
 
@@ -244,7 +267,7 @@ class Ai:
 
             # Only look at capture moves (and later checks)
             if gamestate.board[child[1]] != '--':
-                gamestate.make_move(child[0], child[1], child[2])
+                gamestate.make_move(child)
                 score = -self.quiescence(gamestate, -beta, -alpha, -color, moves)
                 gamestate.unmake_move()
         if score >= beta:
@@ -252,13 +275,16 @@ class Ai:
         if score > alpha:
             alpha = score
 
-        return alpha'''
+        return alpha
 
 #  --------------------------------------------------------------------------------
 #                       Sort moves for Negamax
 #  --------------------------------------------------------------------------------
 
     def sort_moves(self, gamestate, children, depth):
+
+        # MVV sorting
+        children.sort(key=lambda x: x[3])
 
         # Killer moves
         if self.killer_moves[depth]:
@@ -267,35 +293,11 @@ class Ai:
                     children.remove(move)
                     children.append(move)
 
-        # MVV-LVA sorting, store a maximum of the s.mvv_storing to children
-        mvv_lva_values = []
-        for move in children:
-            if gamestate.board[move[1]] != '--':
-                # If can capture last moved piece, then try this first
-                if move[1] == gamestate.move_log[-1][0][1]:
-                    mvv_lva_values.append([s.mvv_lva_values[gamestate.board[move[1]][1]] - s.mvv_lva_values[gamestate.board[move[0]][1]] + 1000, move])
-                else:
-                    mvv_lva_values.append([s.mvv_lva_values[gamestate.board[move[1]][1]] - s.mvv_lva_values[gamestate.board[move[0]][1]], move])
-        mvv_lva_values.sort(reverse=True)
-        top_values = mvv_lva_values[-min(s.mvv_storing, len(mvv_lva_values)):]
-        for move_value in top_values:
-            move = move_value[1]
-            children.remove(move)
-            children.append(move)
-
         # Best move from previous iteration is picked as best guess for next iteration
         if gamestate.zobrist_key in self.tt_entry:
             previous_best = self.tt_entry[gamestate.zobrist_key]['best move']
             if previous_best in children:
                 children.remove(previous_best)
                 children.append(previous_best)
-        '''else:
-            # Internal iterative deepening if not finding a best guess. 
-            if depth >= 2:
-                move = self.negamax(gamestate, depth - 2, -math.inf, math.inf, -color)[0]
-                if move:
-                    if move in children:
-                        children.remove(move)
-                        children.append(move)'''
 
         return children

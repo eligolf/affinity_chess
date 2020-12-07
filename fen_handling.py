@@ -79,16 +79,7 @@ def fen_to_board(fen):
     is_white_turn = True if 'w' in fen.split(' ')[1] else False
 
     # Castling rights
-    castling_rights = [False, False, False, False]
-    rights = fen.split(' ')[2]
-    if 'K' in rights:
-        castling_rights[0] = True
-    if 'Q' in rights:
-        castling_rights[1] = True
-    if 'k' in rights:
-        castling_rights[2] = True
-    if 'q' in rights:
-        castling_rights[3] = True
+    castling_rights = fen.split(' ')[2]
 
     # Enpassant square
     if fen.split(' ')[3] != '-':
@@ -158,16 +149,7 @@ def gamestate_to_fen(gamestate):
     fen += ' w ' if gamestate.is_white_turn else ' b '
 
     # Castling rights
-    if gamestate.castling_rights[0]:
-        fen += 'K'
-    if gamestate.castling_rights[1]:
-        fen += 'Q'
-    if gamestate.castling_rights[2]:
-        fen += 'k'
-    if gamestate.castling_rights[3]:
-        fen += 'q'
-    if not any(gamestate.castling_rights):
-        fen += '-'
+    fen += gamestate.castling_rights if gamestate.castling_rights else '-'
 
     # Enpassant square
     if not gamestate.enpassant_square:

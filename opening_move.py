@@ -24,7 +24,7 @@ def make_opening_move(gamestate):
                         moves.append(entry.move)
 
                         # Only pick from the most common openings
-                        if i == 3:
+                        if i == 2:
                             break
 
     # Pick a random move if exists, else return None

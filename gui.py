@@ -11,6 +11,7 @@ import PySimpleGUI as sg
 import cProfile
 import ctypes
 import os
+import sys
 import contextlib
 with contextlib.redirect_stdout(None):
     import pygame
@@ -56,8 +57,7 @@ class Gui:
         self.draw('')
         sg.theme('DarkAmber')
         self.start_pop_up()
-        self.is_started = True
-        self.running = True
+        self.is_started = self.running = True
 
         # Init Gamestate and AI
         self.gamestate = gs.GameState(self.start_fen, self.game_mode, self.is_ai_white, self.max_search_depth)
@@ -79,15 +79,8 @@ class Gui:
             # Events happening in GUI
             for event in pygame.event.get():
 
-                # Able to quit GUI
-                if event.type == pygame.QUIT:
-                    event = pop_up('Quit', 'Are you sure you want to quit?', True)
-                    if event == 'Yes':
-                        pygame.quit()
-                        self.running = False
-
                 # Mouse events
-                elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.type == pygame.MOUSEBUTTONDOWN:
                     pos = pygame.mouse.get_pos()
 
                     if event.button == 1:
@@ -147,6 +140,13 @@ class Gui:
             # Draw the screen after human move
             if self.running:
                 self.draw(self.gamestate.get_valid_moves())
+
+            # Able to quit GUI
+            if event.type == pygame.QUIT:
+                event = pop_up('Quit', 'Are you sure you want to quit?', True)
+                if event == 'Yes':
+                    pygame.quit()
+                    self.running = False
 
             # Check if stalemated/checkmated and stop the game if so
             if self.gamestate.is_check_mate or self.gamestate.is_stale_mate:
@@ -243,15 +243,15 @@ class Gui:
         if self.gamestate.is_in_check:
             king_pos = self.gamestate.white_king_location if self.gamestate.is_white_turn else self.gamestate.black_king_location
             row, col = (king_pos // 10 - 2, king_pos % 10 - 1) if not self.is_flipped else (9 - king_pos // 10, 8 - king_pos % 10)
-            self.draw_highlighting(s.check_red, s.check_red_t, col, row, 2)
+            self.draw_highlighting(s.check_red, s.check_red_t, col, row, 1)
 
         # Highlight latest move
         start_row, start_col = (self.latest_move[-1][0] // 10 - 2, self.latest_move[-1][0] % 10 - 1) if not self.is_flipped else \
                                (9 - self.latest_move[-1][0] // 10, 8 - self.latest_move[-1][0] % 10)
         end_row, end_col = (self.latest_move[-1][1] // 10 - 2, self.latest_move[-1][1] % 10 - 1) if not self.is_flipped else \
                            (9 - self.latest_move[-1][1] // 10, 8 - self.latest_move[-1][1] % 10)
-        self.draw_highlighting(s.grey[1], s.grey_t[1], start_col, start_row, 2)
-        self.draw_highlighting(s.grey[1], s.grey_t[1], end_col, end_row, 2)
+        self.draw_highlighting(s.grey[1], s.grey_t[1], start_col, start_row, 1)
+        self.draw_highlighting(s.grey[1], s.grey_t[1], end_col, end_row, 1)
 
         # Highlight when dragging a piece
         if self.is_dragging:
@@ -261,14 +261,14 @@ class Gui:
 
             # Selected square
             if self.gamestate.board[square][0] == ('w' if self.gamestate.is_white_turn else 'b'):
-                self.draw_highlighting(s.orange, s.orange_t, col, row, 2)
+                self.draw_highlighting(s.orange, s.orange_t, col, row, 1)
 
             # Possible moves
             for move in valid_moves:
                 if move[0] == square:
                     row, col = (move[1] // 10 - 2, move[1] % 10 - 1) if not self.is_flipped else \
                                (9 - move[1] // 10, 8 - move[1] % 10)
-                    self.draw_highlighting(s.green, s.green_t, col, row, 2)
+                    self.draw_highlighting(s.green, s.green_t, col, row, 1)
 
     def draw_highlighting(self, color, color_t, col, row, thickness):
         surface = pygame.Surface((s.sq_size, s.sq_size), pygame.SRCALPHA)
@@ -306,10 +306,18 @@ class Gui:
 
         # AI-related prints
         if self.game_mode == 'ai':
+
+            # See if depth is reduced since quiescence search is not implemented
+            if self.ai.real_depth != self.ai.max_depth:
+                depth = f'Depth: {self.ai.max_depth} ({self.ai.real_depth})'
+            else:
+                depth = f'Depth: {self.ai.max_depth}'
+
             self.create_text('AI info', s.title_font, s.black, 1.2*s.width, 0.63*s.height, False)
-            self.create_text(f'Level: {s.level[self.max_search_depth]}', s.info_font, s.black, 1.14*s.width, 0.63*s.height + 0.4*s.sq_size, False)
-            self.create_text(f'Depth: {self.ai.max_depth}', s.info_font, s.black, 1.14*s.width, 0.63*s.height + 0.7*s.sq_size, False)
-            self.create_text(f'Eval: {self.evaluation}', s.info_font, s.black, 1.14*s.width, 0.63*s.height + s.sq_size, False)
+            self.create_text(f'Level: {s.level[self.max_search_depth]}', s.info_font, s.black, 1.14*s.width, 0.63*s.height + 0.3*s.sq_size, False)
+            self.create_text(depth, s.info_font, s.black, 1.14*s.width, 0.63*s.height + 0.58*s.sq_size, False)
+            self.create_text(f'Eval: {self.evaluation}', s.info_font, s.black, 1.14*s.width, 0.63*s.height + 0.86*s.sq_size, False)
+            self.create_text(f'Time: {round(self.ai.timer, 2)} s', s.info_font, s.black, 1.14 * s.width, 0.63 * s.height + 1.14*s.sq_size, False)
 
     def process_eval(self):
 
@@ -330,7 +338,7 @@ class Gui:
     def process_move(self, move):
 
         # Make the move and update move info
-        self.gamestate.make_move(move[0], move[1], move[2])
+        self.gamestate.make_move(move)
         self.gamestate.move_counter += 0.5  # Increase move counter
         self.latest_move.append(move)
         self.add_move_to_list(move[0], move[1])  # Add move to list of made moves
@@ -342,7 +350,7 @@ class Gui:
 
         # Evaluate current position after the move is made and print the result
         if s.static_evaluation:
-            evaluation = e.evaluate(self.gamestate)
+            evaluation = e.evaluate(self.gamestate, 0)
             print('(Static evaluation for ' + ('white: ' if not self.gamestate.is_white_turn else 'black: ') + str(evaluation if self.gamestate.is_white_turn else -evaluation) + ')')
 
         # Flip board if human vs human and if board is not already flipped in the right direction for player turn
@@ -356,11 +364,11 @@ class Gui:
     def unmake_a_move(self):
 
         # Can't redo engines first move
-        moves_made = 2 if self.is_ai_white else 1
+        moves_made = 1 if (not self.is_ai_white or (not self.gamestate.is_ai_white and len(self.gamestate.move_log) == 2)) else 2
 
-        if len(self.gamestate.move_log) > moves_made:
+        if len(self.gamestate.move_log) > moves_made and not (not self.gamestate.is_ai_white and self.game_mode == 'ai' and len(self.gamestate.move_log) == 2):
 
-            # Unmake twice if playing against the AI
+            # Unmake twice if playing against the AI, if AI is black
             undo_move = 1 if self.game_mode == 'human' else 2
 
             for undo in range(0, undo_move):
@@ -372,11 +380,6 @@ class Gui:
                 if self.game_mode == 'human':
                     if (self.gamestate.is_white_turn and self.is_flipped) or (not self.gamestate.is_white_turn and not self.is_flipped):
                         self.is_flipped = not self.is_flipped
-
-    def restart_game(self):
-        event = pop_up('Restart game', 'Are you sure you want to restart?', True)
-        if event == 'Yes':
-            Gui().main()
 
     def add_move_to_list(self, start_square, end_square):
 
@@ -454,29 +457,34 @@ class Gui:
     def get_square_under_mouse(self):
         pos = pygame.mouse.get_pos()  # (x, y) location of click
         col, row = ((pos[0] + s.sq_size - s.board_offset) // s.sq_size, (pos[1] + 2 * s.sq_size - s.board_offset) // s.sq_size) if not self.is_flipped \
-            else (9 - (pos[0] + s.sq_size - s.board_offset) // s.sq_size, 11 - (pos[1] + 2 * s.sq_size - s.board_offset) // s.sq_size)  # Get corresponding square in chess board
+            else (9 - (pos[0] + s.sq_size - s.board_offset) // s.sq_size, 11 - (pos[1] + 2 * s.sq_size - s.board_offset) // s.sq_size)  # Get corresponding square on chess board
 
         square_under_mouse = row * 10 + col  # Get corresponding square on the 10x12 board
 
         return square_under_mouse, col, row
 
+    def restart_game(self):
+        event = pop_up('Restart game', 'Are you sure you want to restart?', True)
+        if event == 'Yes':
+            self.running = False
+            Gui().main()
+
     def game_over_messages(self):
 
         if self.gamestate.is_check_mate:
-            winner = 'white' if self.gamestate.white_wins else 'black'
-            event = pop_up('Checkmate', f'Checkmate, {winner} won! Do you want to play again?', True)
+            event = pop_up('Checkmate', 'Checkmate! Do you want to play again?', True)
+            self.running = False
             if event == 'Yes':
                 Gui().main()
             else:
                 pygame.quit()
-                self.running = False
         else:
             event = pop_up(self.gamestate.kind_of_stalemate, 'Game drawn! Do you want to play again?', True)
+            self.running = False
             if event == 'Yes':
                 Gui().main()
             else:
                 pygame.quit()
-                self.running = False
 
     def chose_promotion_piece(self, possible_move):
         event, values = sg.Window('', [[sg.Text('Promote to:')],
@@ -487,55 +495,75 @@ class Gui:
             self.process_move((possible_move[0], possible_move[1], move_type))
 
     def start_pop_up(self, wrong_fen=False):
+
+        # Make a collapse menu to not show AI strength and who to play as if game_mode = 'human'
+        def collapse(layouts, key):
+            return sg.pin(sg.Column(layouts, key=key))
+
+        collapsible = [[sg.Text('Play as:     '), sg.Radio('White', '2', default=True, size=(5, 1), key='white'), sg.Radio('Black', '2', key='black')],
+                       [sg.Text('AI strength:'), sg.Radio('Hard', '3', default=True, size=(5, 1), key='hard'), sg.Radio('Normal', '3', key='normal'), sg.Radio('Easy', '3', key='easy')]]
+
         if wrong_fen:
-            layout = [[sg.Text('')],
-                      [sg.Text('Start FEN (Optional): ', size=(15, 1)), sg.InputText(size=(60, 1), key='fen')],
-                      [sg.Text('Please enter a valid FEN, or leave empty for start position.', text_color='red')],
-                      [sg.Text('')],
-                      [sg.Text('Opponent:  '), sg.Radio('AI', '1', default=True, size=(5, 1), key='ai'), sg.Radio('Human', '1', size=(5, 1), key='human')],
-                      [sg.Text('Play as:     '), sg.Radio('White', '2', default=True, size=(5, 1), key='white'), sg.Radio('Black', '2', key='black')],
-                      [sg.Text('AI strength:'), sg.Radio('Hard', '3', default=True, size=(5, 1), key='hard'), sg.Radio('Normal', '3', key='normal'), sg.Radio('Easy', '3', key='easy')],
-                      [sg.Text('')],
-                      [sg.Submit()]]
-        else:
-            layout = [[sg.Text('')],
-                      [sg.Text('Start FEN (Optional): ', size=(15, 1)), sg.InputText(size=(60, 1), key='fen')],
-                      [sg.Text('')],
-                      [sg.Text('Opponent:  '), sg.Radio('AI', '1', default=True, size=(5, 1), key='ai'), sg.Radio('Human', '1', size=(5, 1), key='human')],
-                      [sg.Text('Play as:     '), sg.Radio('White', '2', default=True, size=(5, 1), key='white'), sg.Radio('Black', '2', key='black')],
-                      [sg.Text('AI strength:'), sg.Radio('Hard', '3', default=True, size=(5, 1), key='hard'), sg.Radio('Normal', '3', key='normal'), sg.Radio('Easy', '3', key='easy')],
-                      [sg.Text('')],
+            layout = [[sg.Text('Start FEN (Optional): ', size=(15, 1), pad=(5, (20, 5))), sg.InputText(size=(60, 1), key='fen', pad=(5, (20, 5)))],
+                      [sg.Text('Please enter a valid FEN, or leave empty for start position.', text_color='red', pad=(5, (0, 10)))],
+                      [sg.Text('Opponent: ', pad=(9, 0)), sg.Radio('AI', '1', default=True, size=(5, 1), key='ai', enable_events=True),
+                       sg.Radio('Human', '1', size=(5, 1), key='human', enable_events=True)],
+                      [collapse(collapsible, '-SEC1-')],
                       [sg.Submit(pad=(10, 18))]]
+        else:
+            layout = [[sg.Text('Start FEN (Optional): ', size=(15, 1), pad=(5, 25)), sg.InputText(size=(60, 1), key='fen')],
+                      [sg.Text('Opponent: ', pad=(9, 0)), sg.Radio('AI', '1', default=True, size=(5, 1), key='ai', enable_events=True),
+                       sg.Radio('Human', '1', size=(5, 1), key='human', enable_events=True)],
+                      [collapse(collapsible, '-SEC1-')],
+                      [sg.Submit(pad=(10, 15))]]
 
         window = sg.Window('Please chose start settings', layout)
-        event, values = window.read()
-        if event == sg.WIN_CLOSED:
-            self.game_mode = 'ai'
-            self.is_ai_white = False
-            self.max_search_depth = s.max_search_depth_hard
-        if values['ai']:
-            self.game_mode = 'ai'
-        if values['human']:
-            self.game_mode = 'human'
-        if values['white']:
-            self.is_ai_white = False
-        if values['black']:
-            self.is_ai_white = True
-        if values['hard']:
-            self.max_search_depth = s.max_search_depth_hard
-        if values['normal']:
-            self.max_search_depth = s.max_search_depth_normal
-        if values['easy']:
-            self.max_search_depth = s.max_search_depth_easy
-        if values['fen']:
-            if fh.test_fen(str(values['fen'])):
-                self.start_fen = str(values['fen'])
-                self.is_white_turn = True if 'w' in self.start_fen else False
-            else:
-                window.close()
-                self.start_pop_up(True)
-        else:
-            self.is_white_turn = True
+
+        # Event loop
+        while True:
+
+            event, values = window.read()
+
+            if event == sg.WIN_CLOSED or event == 'Exit':
+                self.game_mode = 'ai'
+                self.is_ai_white = False
+                self.max_search_depth = s.max_search_depth_hard
+                break
+
+            if event == 'human':
+                opened1 = False
+                window['-SEC1-'].update(visible=opened1)
+
+            elif event == 'ai':
+                opened1 = True
+                window['-SEC1-'].update(visible=opened1)
+
+            elif event == 'Submit':
+                if values['ai']:
+                    self.game_mode = 'ai'
+                if values['human']:
+                    self.game_mode = 'human'
+                if values['white']:
+                    self.is_ai_white = False
+                if values['black']:
+                    self.is_ai_white = True
+                if values['hard']:
+                    self.max_search_depth = s.max_search_depth_hard
+                if values['normal']:
+                    self.max_search_depth = s.max_search_depth_normal
+                if values['easy']:
+                    self.max_search_depth = s.max_search_depth_easy
+                if values['fen']:
+                    if fh.test_fen(str(values['fen'])):
+                        self.start_fen = str(values['fen'])
+                        self.is_white_turn = True if 'w' in self.start_fen else False
+                    else:
+                        window.close()
+                        self.start_pop_up(True)
+                else:
+                    self.is_white_turn = True
+
+                break
 
         window.close()
 
@@ -546,16 +574,16 @@ class Gui:
 
 def pop_up(title, message, question):
     if question:
-        layout = [[sg.Text(message, pad=(10, 10))],
-                  [sg.Button('Yes', pad=(10, 10)), sg.Button('No', pad=(10, 10))]]
-        window = sg.Window(title, layout, size=(350, 100))
+        layout = [[sg.Text(message)],
+                  [sg.Button('Yes'), sg.Button('No')]]
+        window = sg.Window(title, layout, element_justification='c', element_padding=(5, 10))
         event, values = window.read()
         window.close()
         return event
     else:
         layout = [[sg.Text(message)],
                   [sg.Button('Ok')]]
-        window = sg.Window(title, layout)
+        window = sg.Window(title, layout, element_justification='c', element_padding=(5, 10))
         window.close()
 
 
@@ -567,8 +595,9 @@ def pop_up(title, message, question):
 if __name__ == '__main__':
 
     # Set the correct icon in Windows taskbar
-    myappid = u'_'
-    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+    if sys.platform.startswith('win'):
+        myappid = u'_'
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
     # If timing a game, run the cProfile module. Else run normally.
     if s.timing:

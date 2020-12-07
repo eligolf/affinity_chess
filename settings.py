@@ -7,12 +7,12 @@ with contextlib.redirect_stdout(None):
 #  --------------------------------------------------------------------------------
 
 # Set window size, all based on the board square size (between 40 and 100)
-sq_size = 70
+sq_size = 85
 
 # Negamax parameters for iterative deepening
-max_search_time = 3  # When it reaches more than x seconds for a move it makes a last search
+max_search_time = 5  # When it reaches more than x seconds for a move it makes a last search
 min_search_depth = 6  # Choose to always search for at least a certain number of depth
-max_search_depth_hard = 60
+max_search_depth_hard = 600
 max_search_depth_normal = 4
 max_search_depth_easy = 2
 
@@ -256,6 +256,7 @@ start_board = {0: 'FF',   1: 'FF',   2: 'FF',   3: 'FF',   4: 'FF',   5: 'FF',  
 
 mvv_storing = 10  # How many of the MVV_LVV top candidates to use
 no_of_killer_moves = 2  # Number of killer moves stored per depth
+R = 2  # Null move reduction of depth
 
 
 # Piece base values
@@ -274,27 +275,6 @@ piece_value_base_end_game = {'K': 60000,
                              'p': 100}
 
 # ------- Piece values/factors for different cases ----------------
-
-# Number of squares that a piece is attacking in the center 4 squares and the surrounding ones as well
-piece_center_attack = {'K': 0,
-                       'Q': 5,
-                       'R': 5,
-                       'B': 5,
-                       'N': 5,
-                       'p': 5}
-
-center_attacks = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                  0, 0, 0, 1, 1, 1, 1, 0, 0, 0,
-                  0, 0, 0, 1, 2, 2, 1, 0, 0, 0,
-                  0, 0, 0, 1, 2, 2, 1, 0, 0, 0,
-                  0, 0, 0, 1, 1, 1, 1, 0, 0, 0,
-                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 
 # MVV-LVA move ordering
 mvv_lva_values = {'K': 20000,
@@ -325,7 +305,7 @@ king_mid = [0,   0,   0,   0,   0,   0,   0,   0,   0, 0,
             0, -20, -30, -30, -40, -40, -30, -30, -20, 0,
             0, -10, -20, -20, -20, -20, -20, -20, -10, 0,
             0,  20,  20,   0,   0,   0,   0,  20,  20, 0,
-            0,  20,  40,   0,   0,   0,   0,  40,  20, 0,
+            0,  0,  20,   40,   0,   0,   0,  40,  20, 0,
             0,   0,   0,   0,   0,   0,   0,   0,   0, 0,
             0,   0,   0,   0,   0,   0,   0,   0,   0, 0]
 queen_mid = [0,   0,   0,   0,  0,  0,   0,   0,   0, 0,
@@ -349,7 +329,7 @@ rook_mid = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, -5, 0, 0, 0, 0, 0, 0, -5, 0,
             0, -5, 0, 0, 0, 0, 0, 0, -5, 0,
             0, -5, 0, 0, 0, 0, 0, 0, -5, 0,
-            0, 0, 0, 5, 10, 10, 5, 0, 0, 0,
+            0, 0, 0, 10, 10, 10, 10, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 bishop_mid = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -361,19 +341,19 @@ bishop_mid = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
               0, -10, 0, 10, 10, 10, 10, 0, -10, 0,
               0, -10, 10, 10, 10, 10, 10, 10, -10, 0,
               0, -10, 10, 0, 10, 10, 0, 10, -10, 0,
-              0, -20, -10, -30, -10, -10, -30, -10, -20, 0,
+              0, -20, -10, -50, -10, -10, -50, -10, -20, 0,
               0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
               0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 knight_mid = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
               0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-              0, -50, -40, -30, -30, -30, -30, -40, -50, 0,
-              0, -40, -20, 0, 0, 0, 0, -20, -40, 0,
-              0, -30, 0, 10, 15, 15, 10, 0, -30, 0,
-              0, -30, 5, 15, 20, 20, 15, 5, -30, 0,
-              0, -30, 0, 15, 20, 20, 15, 0, -30, 0,
-              0, -30, 5, 10, 15, 15, 10, 5, -30, 0,
-              0, -40, -20, 0, 5, 5, 0, -20, -40, 0,
-              0, -50, -40, -30, -30, -30, -30, -40, -50, 0,
+              0, -30, -30, -10, -10, -10, -10, -30, -30, 0,
+              0, -20, -20, 0, 0, 0, 0, -20, -20, 0,
+              0, -10, 0, 10, 15, 15, 10, 0, -10, 0,
+              0, -10, 5, 15, 20, 20, 15, 5, -10, 0,
+              0, -10, 0, 15, 20, 20, 15, 0, -10, 0,
+              0, -10, 5, 10, 15, 15, 10, 5, -10, 0,
+              0, -20, -20, 0, 5, 5, 0, -20, -20, 0,
+              0, -30, -30, -10, -10, -10, -10, -30, -30, 0,
               0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
               0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 pawn_mid = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -480,8 +460,10 @@ piece_value_end_game = {'K': king_end,
 bishop_pair_bonus = 15
 mobility_factor = 5
 
-double_pawn_punishment = -30  # Give punishment if there are 2 pawns on the same column, maybe increase if late in game. Calibrate value
-isolated_pawn_punishment = -30  # If the pawn has no allies on the columns next to it, calibrate value later
+castling_bonus = 50
+
+double_pawn_punishment = -40  # Give punishment if there are 2 pawns on the same column, maybe increase if late in game. Calibrate value
+isolated_pawn_punishment = -40  # If the pawn has no allies on the columns next to it, calibrate value later
 
 knight_endgame_punishment = -10  # Punishment for knights in endgame, per piece
 bishop_endgame_bonus = 10  # Bonus for bishops in endgame, per piece
@@ -491,6 +473,12 @@ rook_on_open_file_bonus = 20  # Give rook a bonus for being on an open file with
 
 blocking_d_e_pawn_punishment = -40  # Punishment for blocking unmoved pawns on d and e file
 
+knight_pawn_bonus = 2  # Knights better with lots of pawns
+bishop_pawn_punishment = -2  # Bishops worse with lots of pawns
+rook_pawn_punishment = -2  # Rooks worse with lots of pawns
+
+center_attack_bonus_factor = 1  # Factor to multiply with how many center squares are attacked by own pieces
+king_attack_bonus_factor = 5  # Factor to multiply with how many squares around enemy king that are attacked by own pieces
 
 # If down in material, punish exchanging material. And the opposite if up in material
 # Add king_end piece table to logic (e.g. if no queens on the board or only queens and pawns)
@@ -500,7 +488,6 @@ blocking_d_e_pawn_punishment = -40  # Punishment for blocking unmoved pawns on d
 # Attacking squares (how many squares own piece are attacking, including possibilities to take a piece)
 # King safety, how many attackers are around the own king
 #      - Attacking king, how many own pieces are attacking squares around enemy king
-# Development bonus (bonus for developing bishops, knights, and do castle first, along with pawns, and then rooks and queen later)
 # Pawn formations, passed pawns etc. Use pawn hash table?
 # Rook behind passed pawn bonus
 # Passed pawn against knight bonus, since knight can't move far very quickly
@@ -512,6 +499,15 @@ blocking_d_e_pawn_punishment = -40  # Punishment for blocking unmoved pawns on d
 #  --------------------------------------------------------------------------------
 #                    Pre-calculated tables to speed up game
 #  --------------------------------------------------------------------------------
+
+# Number of squares that a piece is attacking the opponent king
+piece_king_attack = {'K': 0,
+                     'Q': 5,
+                     'R': 2,
+                     'B': 5,
+                     'N': 5,
+                     'p': 4}
+
 king_attack_squares = {}
 for square in real_board_squares:
     king_attack_squares[square] = []
@@ -521,3 +517,25 @@ for square in real_board_squares:
         attack_square = square + d
         if attack_square in real_board_squares:
             king_attack_squares[square].append(attack_square)
+
+# Number of squares that a piece is attacking in the center 4 squares and the surrounding ones
+piece_center_attack = {'K': 0,
+                       'Q': 2,
+                       'R': 2,
+                       'B': 5,
+                       'N': 5,
+                       'p': 5}
+
+center_attacks = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                  0, 0, 0, 1, 1, 1, 1, 0, 0, 0,
+                  0, 0, 0, 1, 2, 2, 1, 0, 0, 0,
+                  0, 0, 0, 1, 2, 2, 1, 0, 0, 0,
+                  0, 0, 0, 1, 1, 1, 1, 0, 0, 0,
+                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
