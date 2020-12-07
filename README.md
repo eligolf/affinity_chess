@@ -46,13 +46,13 @@ The AI is based on a Negamax algorithm with the following features currently inc
   - Best move from previous iterations
   - Killer moves
   - MVV/LVA
+- [X] Null move
 
 You also have the ability to let the AI use the built in opening books. If you want you can add your own polyglot opening book (.bin) to the 'opening_books' folder and use that one instead.  
 
 Future implementation ideas:
 - [ ] Quiscience search
 - [ ] Hash moves move ordering
-- [ ] Null move
 - [ ] Late move reduction (LMR)
 - [ ] Obtain the PV line
 
