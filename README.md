@@ -47,6 +47,7 @@ The AI is based on a Negamax algorithm with the following features currently inc
   - Killer moves
   - MVV/LVA
 - [X] Null move
+- [X] Syzygy 3, 4 and 5 man endgame tablesbases 
 
 You also have the ability to let the AI use the built in opening books. If you want you can add your own polyglot opening book (.bin) to the 'opening_books' folder and use that one instead.  
 
