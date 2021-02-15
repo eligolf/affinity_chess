@@ -2,13 +2,9 @@
 Affinity Chess is a chess program/engine written in Python as a hobby project to learn more about programming in general. The program includes a GUI in which you can play against another human or against the built in AI.
 
 # Getting started
-At start up you are able to chose some initial settings for the game. You can use a custom FEN position as start position, or leave the field empty to use the normal initial chess position.
+**Use in external GUI:** In the exe-folder you find the .exe file which you can use to install the engine in an external GUI. You can find all communication and logic in the uci.py file.
 
-<figure>
-    <img src='https://user-images.githubusercontent.com/59540119/100571582-cc2e3280-32d3-11eb-86d9-268fa8b4f062.png' alt='missing' />
-</figure>
-
-In the file settings.py you will find other settings for the game and GUI in general.
+**Use in own GUI:** To use the own GUI you need to download and install the module Pygame. The program should be independent on OS, but please let me know if any issues arise if you run it in any other OS than Windows. 
 
 # Start playing
 Playing Affinity Chess is very simple. You can run the command "python gui.py" in the terminal, in the folder where the game is located. Or you can open up gui.py in your favorite IDE and play from there.
